@@ -1,10 +1,10 @@
-import { ClientOnly } from "@tanstack/react-router";
 import { Wallet, Copy, LogOut, ChevronDown, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { authenticateWallet, logoutWallet } from "@/lib/wallet/auth";
+import { useWalletUiReady } from "@/lib/wallet/wallet-ui-ready";
 import { useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -18,42 +18,37 @@ import { toast } from "sonner";
 
 declare global {
   interface Window {
-    phantom?: { solana?: { isPhantom?: boolean } };
+    phantom?: { solana?: { isPhantom?: boolean; connect?: () => Promise<{ publicKey: { toString: () => string } }> } };
+    solana?: { isPhantom?: boolean; connect?: () => Promise<{ publicKey: { toString: () => string } }> };
   }
 }
 
-function hasWalletInjection(wallets: { adapter: { name: string }; readyState: string }[]) {
-  if (typeof window === "undefined") return true;
-  const phantomInjected = Boolean(window.phantom?.solana?.isPhantom);
-  const solanaInjected = Boolean((window as Window & { solana?: { isPhantom?: boolean } }).solana?.isPhantom);
-  const standardReady = wallets.some((w) => w.readyState === "Installed" || w.readyState === "Loadable");
-  return phantomInjected || solanaInjected || standardReady || wallets.length > 0;
+function getPhantomProvider() {
+  if (typeof window === "undefined") return null;
+  const p = window.phantom?.solana ?? window.solana;
+  return p?.isPhantom ? p : null;
 }
 
 export function ConnectWalletButton({ size = "default" }: { size?: "sm" | "default" | "lg" }) {
-  return (
-    <ClientOnly fallback={<ConnectWalletPlaceholder size={size} />}>
-      <ConnectWalletButtonInner size={size} />
-    </ClientOnly>
-  );
+  const walletUiReady = useWalletUiReady();
+  if (!walletUiReady) {
+    return (
+      <Button
+        size={size}
+        className="bg-gradient-primary text-primary-foreground border-0 font-medium opacity-90"
+        onClick={() => toast("Wallet loading…", { description: "One moment — then try again." })}
+      >
+        <Wallet className="h-4 w-4" />
+        Connect Wallet
+      </Button>
+    );
+  }
+  return <ConnectWalletButtonCore size={size} />;
 }
 
-function ConnectWalletPlaceholder({ size }: { size?: "sm" | "default" | "lg" }) {
-  return (
-    <Button
-      size={size}
-      disabled
-      className="bg-gradient-primary text-primary-foreground border-0 font-medium opacity-80"
-    >
-      <Wallet className="h-4 w-4" />
-      Connect Wallet
-    </Button>
-  );
-}
-
-function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default" | "lg" }) {
+function ConnectWalletButtonCore({ size = "default" }: { size?: "sm" | "default" | "lg" }) {
   const { wallet: adapterWallet, publicKey, connected, connecting, disconnect, signMessage, wallets, select, connect } = useWallet();
-  const { setVisible } = useWalletModal();
+  const { setVisible, visible } = useWalletModal();
   const { wallet, connectWallet, disconnectWallet } = useAppStore();
   const authAttempted = useRef<string | null>(null);
   const authInFlight = useRef(false);
@@ -61,7 +56,7 @@ function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default
   const [showInjectionHelp, setShowInjectionHelp] = useState(false);
 
   useEffect(() => {
-    if (import.meta.env.DEV && wallets.length) {
+    if (wallets.length) {
       console.debug("[wallet]", wallets.map((w) => [w.adapter.name, w.readyState]));
     }
   }, [wallets]);
@@ -106,24 +101,49 @@ function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default
     }
   }, [connected, wallet.connected, disconnectWallet]);
 
-  function handleConnectClick() {
+  async function handleConnectClick() {
     setShowInjectionHelp(false);
-    void (async () => {
+
+    const phantom = getPhantomProvider();
+    const phantomAdapter = wallets.find((w) => w.adapter.name === "Phantom");
+
+    try {
+      if (phantomAdapter && (phantomAdapter.readyState === "Installed" || phantomAdapter.readyState === "Loadable")) {
+        select(phantomAdapter.adapter.name);
+        await connect();
+        return;
+      }
+
+      if (phantom) {
+        select("Phantom");
+        await connect();
+        return;
+      }
+
       const installed = wallets.filter((w) => w.readyState === "Installed" || w.readyState === "Loadable");
       if (installed.length === 1) {
-        try {
-          select(installed[0].adapter.name);
-          await connect();
-          return;
-        } catch {
-          // fall through to modal
-        }
+        select(installed[0].adapter.name);
+        await connect();
+        return;
       }
-      if (!hasWalletInjection(wallets)) {
-        setShowInjectionHelp(true);
-      }
+
       setVisible(true);
-    })();
+      if (!visible) {
+        toast("Select your wallet", { description: "Choose Phantom or Solflare in the picker." });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not open wallet";
+      console.error("[wallet connect]", err);
+      if (!phantom && wallets.length === 0) {
+        setShowInjectionHelp(true);
+        toast.error("No wallet extension detected", {
+          description: "Install Phantom and open this site in a top-level browser tab.",
+        });
+      } else {
+        setVisible(true);
+        toast.error(message, { description: "Try selecting your wallet from the picker." });
+      }
+    }
   }
 
   if (!wallet.connected) {
@@ -131,7 +151,8 @@ function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default
       <div className="flex flex-col items-end gap-2">
         <Button
           size={size}
-          onClick={handleConnectClick}
+          type="button"
+          onClick={() => void handleConnectClick()}
           disabled={connecting}
           className="bg-gradient-primary text-primary-foreground border-0 hover:opacity-90 glow-primary font-medium"
         >
@@ -145,9 +166,9 @@ function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default
               No wallet extension detected
             </div>
             <ul className="text-muted-foreground space-y-1 list-disc pl-4">
-              <li>Open this app in a top-level browser tab (not an embedded preview)</li>
-              <li>Install the Phantom browser extension</li>
-              <li>For production, use <a href="https://wmos.buildingcultureid.space" className="text-primary underline">wmos.buildingcultureid.space</a> in a top-level tab</li>
+              <li>Open <a href="https://wmos.buildingcultureid.space" className="text-primary underline">wmos.buildingcultureid.space</a> in Chrome or Firefox (top-level tab)</li>
+              <li>Install the <a href="https://phantom.app/download" className="text-primary underline" target="_blank" rel="noopener noreferrer">Phantom extension</a></li>
+              <li>Disable other wallet extensions if they conflict</li>
             </ul>
           </div>
         )}
