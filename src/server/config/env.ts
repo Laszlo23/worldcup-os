@@ -39,7 +39,7 @@ export const env = {
   txlineServiceLevel: Number(optional("TXLINE_SERVICE_LEVEL", "12")),
   txlineGuestJwt: optional("TXLINE_GUEST_JWT"),
   txlineApiToken: optional("TXLINE_API_TOKEN"),
-  requireLiveData: optional("REQUIRE_LIVE_DATA", isProduction() ? "true" : "false") === "true",
+  requireLiveData: optional("REQUIRE_LIVE_DATA", "false") === "true",
   solanaRpcUrl: optional("SOLANA_RPC_URL", optional("VITE_SOLANA_RPC_URL", defaults.rpcUrl)),
   solanaNetwork: network,
   worldcupProgramId: optional("WORLDCUP_PROGRAM_ID", optional("VITE_WORLDCUP_PROGRAM_ID")),
@@ -79,8 +79,8 @@ export function assertProductionSecrets(): void {
   if (env.sessionSecret === "dev-session-secret") {
     throw new Error("SESSION_SECRET must be set in production");
   }
-  if (!hasDatabase()) {
-    throw new Error("Database connection required in production");
+  if (!hasDatabase() && env.requireLiveData) {
+    throw new Error("Database connection required in production when REQUIRE_LIVE_DATA=true");
   }
 }
 

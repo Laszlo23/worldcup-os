@@ -3,6 +3,7 @@ import { apiFetch } from "../api/client";
 import { useAppStore } from "../store";
 import type { Match, Market, Prediction, TxLineProof, LeaderRow } from "../mock/types";
 import type { AnalyticsSnapshot, PortfolioSummary, AdminDashboard } from "../types";
+import { MOCK_ORACLE_EVENTS } from "../mock/oracle-events";
 
 export const queryKeys = {
   matches: ["matches"] as const,
@@ -130,18 +131,44 @@ export function usePortfolio() {
   });
 }
 
+export interface LiveEvent {
+  id: string;
+  event_type: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
 export function useLiveEvents(matchId?: string) {
   return useQuery({
     queryKey: queryKeys.liveEvents(matchId),
     queryFn: async () => {
       const qs = matchId ? `?matchId=${encodeURIComponent(matchId)}` : "";
-      const res = await apiFetch<{ events: { id: string; event_type: string; title: string; body: string; created_at: string }[] }>(
+      const res = await apiFetch<{ events: LiveEvent[] }>(
         `/api/stream/events${qs}`,
       );
       return res.events;
     },
     refetchInterval: 5_000,
   });
+}
+
+export function useOracleFeed() {
+  const healthQuery = useHealth();
+  const eventsQuery = useLiveEvents();
+  const fetchedAt = eventsQuery.dataUpdatedAt || healthQuery.dataUpdatedAt;
+  const latencyMs = fetchedAt ? Math.max(0, Date.now() - fetchedAt) : 0;
+  const connected = healthQuery.data?.txline?.status === "healthy";
+  const events =
+    eventsQuery.data && eventsQuery.data.length > 0 ? eventsQuery.data : MOCK_ORACLE_EVENTS;
+
+  return {
+    events,
+    health: healthQuery.data,
+    latencyMs: Math.min(latencyMs, 9999),
+    connected,
+    isLoading: eventsQuery.isLoading || healthQuery.isLoading,
+  };
 }
 
 export function useAdminDashboard() {

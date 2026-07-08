@@ -16,6 +16,9 @@ const titles: Record<string, string> = {
   "/leaderboard": "Leaderboard",
   "/analytics": "Analytics",
   "/proofs": "Proof Explorer",
+  "/oracle": "Oracle Command Center",
+  "/replay": "Replay Mode",
+  "/tasks": "Community Tasks",
   "/portfolio": "Portfolio",
   "/settings": "Settings",
 };

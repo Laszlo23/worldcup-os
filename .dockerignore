@@ -1,0 +1,9 @@
+node_modules
+.output
+target
+.git
+.env
+.env.*
+!.env.example
+*.md
+!README.md

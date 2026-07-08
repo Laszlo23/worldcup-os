@@ -38,11 +38,27 @@ const nitro = spawn("npx", ["nitro", "dev", "--port", apiPort, "--host", "127.0.
 try {
   await run("npm", ["run", "test"]);
   const health = await waitForHealth();
+
+  const nonceRes = await fetch(`${base}/api/auth/nonce?pubkey=7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU`);
+  if (!nonceRes.ok) {
+    throw new Error(`Auth nonce check failed: ${nonceRes.status}`);
+  }
+
   const matches = await fetch(`${base}/api/matches`).then((r) => r.json());
+  const matchCount = matches.matches?.length ?? 0;
+  if (matchCount < 1) {
+    throw new Error(`Expected at least 1 match, got ${matchCount}`);
+  }
+
+  if (!health.solana?.programId) {
+    throw new Error("Health missing solana.programId");
+  }
+
   console.log("\nSmoke summary:");
   console.log("  health.status:", health.status);
   console.log("  solana.programId:", health.solana?.programId);
-  console.log("  matches:", matches.matches?.length ?? 0);
+  console.log("  auth.nonce:", nonceRes.ok ? "ok" : "fail");
+  console.log("  matches:", matchCount);
   console.log("\nSmoke checks passed.");
 } finally {
   nitro.kill("SIGTERM");

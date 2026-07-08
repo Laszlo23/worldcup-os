@@ -1,13 +1,20 @@
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { useMemo, type ReactNode } from "react";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const endpoint = import.meta.env.VITE_SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 
+/** Only construct adapters in the browser — safe for SSR and unit tests. */
+export function createWalletAdapters() {
+  if (typeof window === "undefined") return [];
+  return [new PhantomWalletAdapter(), new SolflareWalletAdapter()];
+}
+
 export function SolanaWalletProvider({ children }: { children: ReactNode }) {
-  const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
+  const wallets = useMemo(() => createWalletAdapters(), []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>

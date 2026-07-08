@@ -4,58 +4,71 @@ Follow this script to verify the hackathon submission end-to-end.
 
 ## Prerequisites
 
-1. Copy `.env.example` → `.env` and fill Postgres + TxLINE + Solana values.
-2. Run migrations: `npm run db:migrate`.
-3. Activate TxLINE SL12: on-chain `subscribe(12)` → `POST /api/txline/activate` with admin wallet.
-4. Start app: `npm run dev`
-5. Start SSE worker (separate terminal): `npm run worker`
+1. Copy `.env.example` → `.env` and fill Postgres + TxLINE + Solana values (empty `DATABASE_URL` = mock mode).
+2. Run migrations if using Postgres: `npm run db:migrate`.
+3. Start app: **`npm run dev`** (starts Nitro API + Vite — required for wallet auth).
+4. Open in a **top-level browser tab** at `http://localhost:5173` (not an embedded iframe — Phantom cannot inject in previews).
+5. Optional: start SSE worker in a separate terminal: `npm run worker`
 
 ## Demo flow (≤ 5 minutes)
 
-### 1. TxLINE connection (30s)
-- Open **Settings** or **Dashboard**
-- Confirm health banner shows **TxLINE Healthy** and **SL12**
-- `/api/health` returns `txline.status: healthy`
+### 1. Landing Live Pulse (15s)
+- Open `/`
+- Confirm **Live Pulse** bar shows TxLINE network stats
+- Read hero: *"The World's First Verifiable Sports Intelligence Network"*
+- Click **Oracle Command Center** CTA
 
-### 2. Live match (60s)
-- Go to **Matches**
-- Pick a live World Cup fixture from TxLINE sync
-- Watch score/minute update from SSE worker
+### 2. Oracle Command Center (45s)
+- Go to `/oracle` (sidebar: **Oracle Command Center**)
+- Confirm **TXLINE CONNECTED** or **DEGRADED** badge with SL12
+- Watch scrolling event terminal (goals, odds, settlement)
+- Point out pipeline viz: TxLINE → Events → Markets → Predictions → Solana → Settlement
 
-### 3. Place prediction (60s)
-- Connect **Phantom** wallet
-- Open match → pick market outcome → enter USDC amount
-- Sign escrow transaction (build-tx → wallet sign → place API)
-- Open Solana Explorer link from portfolio transaction
+### 3. Connect wallet (60s)
+- Click **Connect Wallet** in header
+- If no extension detected, follow inline help (top-level tab + Phantom install)
+- Sign message when prompted — wallet stays connected on auth retry
+- Confirm **Settings** shows **API reachable** / **Auth ready** chips
 
-### 4. Market close (15s)
-- Show market auto-closes before kickoff (worker `closeExpiredMarkets`)
+### 4. Replay match (90s)
+- Go to `/replay` (sidebar: **Replay**)
+- Pick preset: **Argentina vs Brazil** or **France vs Germany**
+- Click **Start replay** — watch timeline steps light up
+- Mock fallback runs automatically if TxLINE API unavailable
+- When done, click through to Oracle + Proof Certificate links
 
-### 5. Settlement + proof (60s)
-- After final whistle, worker enqueues settlement
-- Open **Proof Explorer** or match **SettlementCard**
-- Verify real Merkle root from `GET /api/scores/stat-validation`
+### 5. Proof certificate (30s)
+- Go to `/proofs`
+- Show **Verified Match Certificate** with animated badge
+- Copy Merkle root, open Solana Explorer link
 
-### 6. On-chain verify (30s)
-- Click Solana Explorer link on settlement tx
-- Confirm `worldcup_os.settle_market` CPI to txoracle
-
-### 7. Claim (30s)
-- Winner opens **Portfolio** → claims USDC
-- Show Explorer tx for claim transfer
-
-### 8. Replay mode (90s)
-- Go to `/replay`
-- Enter fixture ID → **Start replay**
-- Full lifecycle completes; settlement job queued automatically
+### 6. Task board (30s)
+- Go to `/tasks`
+- Show featured task + filter pills (All / Easy / Community / Builder)
+- Complete a task — points persist in localStorage
 
 ## API smoke checks
 
 ```bash
-curl -s localhost:5173/api/health | jq .
+npm run smoke
+```
+
+Or manually:
+
+```bash
+curl -s localhost:5173/api/health | jq '.solana.programId'
+curl -s 'localhost:5173/api/auth/nonce?pubkey=7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' | jq .
 curl -s localhost:5173/api/matches | jq '.matches | length'
 curl -s localhost:5173/api/proofs | jq '.proofs | length'
 ```
+
+## Wallet troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| "No wallet extension detected" | Open `localhost:5173` in Chrome/Firefox top-level tab |
+| Connect then immediate disconnect | Use `npm run dev` not `dev:vite` alone |
+| Auth failed toast | Click **Retry sign-in** — wallet stays connected |
 
 ## Worker cron (Vercel)
 

@@ -77,6 +77,19 @@ See `.env.example`. Key variables:
 
 See [HACKATHON_DEMO.md](./HACKATHON_DEMO.md) for the 5-minute judge walkthrough.
 
+## Live demo
+
+**https://wmos.buildingcultureid.space**
+
+| Route | Purpose |
+|-------|---------|
+| `/oracle` | Oracle Command Center (primary judge link) |
+| `/replay` | 90-second match lifecycle demo |
+| `/proofs` | Verified Match Certificates |
+| `/tasks` | Community task board |
+
+Deploy: [DEPLOY.md](./DEPLOY.md) · Hackathon form copy: [SUBMISSION.md](./SUBMISSION.md)
+
 ## GitHub
 
 ```bash

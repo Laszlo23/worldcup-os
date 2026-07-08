@@ -5,23 +5,37 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ConnectWalletButton } from "@/components/connect-wallet";
 import { useAppStore } from "@/lib/store";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api/client";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — World Cup OS" }] }),
   component: Settings,
 });
 
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api/client";
-
 function Settings() {
   const wallet = useAppStore((s) => s.wallet);
   const { data: health } = useQuery({
     queryKey: ["health"],
     queryFn: () =>
-      apiFetch<{ txline: { status: string; serviceLevel: number }; database: boolean; fixtures: { total: number; lastSyncAt: string | null } }>(
-        "/api/health",
-      ),
+      apiFetch<{
+        status: string;
+        txline: { status: string; serviceLevel: number };
+        database: boolean;
+        fixtures: { total: number; lastSyncAt: string | null };
+        solana: { programId: string | null; network: string };
+      }>("/api/health"),
+  });
+
+  const { data: authReady } = useQuery({
+    queryKey: ["auth-nonce-health"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/nonce?pubkey=7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU");
+      return res.ok;
+    },
+    staleTime: 60_000,
   });
 
   return (
@@ -30,6 +44,23 @@ function Settings() {
         <h1 className="text-3xl font-display font-bold">Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your account, wallet, and notifications.</p>
       </div>
+
+      <Card className="glass p-6 space-y-4">
+        <h3 className="font-display font-semibold">System status</h3>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className={authReady ? "border-primary/40 text-primary gap-1" : "border-destructive/40 text-destructive gap-1"}>
+            {authReady ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+            {authReady ? "API reachable" : "API unreachable"}
+          </Badge>
+          <Badge variant="outline" className={authReady ? "border-primary/40 text-primary gap-1" : "border-destructive/40 text-destructive gap-1"}>
+            {authReady ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+            {authReady ? "Auth ready" : "Auth offline"}
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Run <code className="font-mono">npm run dev</code> (not <code className="font-mono">dev:vite</code> alone) so <code className="font-mono">/api/auth/nonce</code> proxies to Nitro.
+        </p>
+      </Card>
 
       <Card className="glass p-6 space-y-4">
         <h3 className="font-display font-semibold">Wallet</h3>

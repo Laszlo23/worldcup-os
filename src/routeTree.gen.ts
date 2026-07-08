@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReplayRouteImport } from './routes/_app.replay'
 import { Route as AppProofsRouteImport } from './routes/_app.proofs'
 import { Route as AppPortfolioRouteImport } from './routes/_app.portfolio'
+import { Route as AppOracleRouteImport } from './routes/_app.oracle'
 import { Route as AppMatchesRouteImport } from './routes/_app.matches'
 import { Route as AppMarketsRouteImport } from './routes/_app.markets'
 import { Route as AppLeaderboardRouteImport } from './routes/_app.leaderboard'
@@ -31,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
@@ -50,6 +57,11 @@ const AppProofsRoute = AppProofsRouteImport.update({
 const AppPortfolioRoute = AppPortfolioRouteImport.update({
   id: '/portfolio',
   path: '/portfolio',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOracleRoute = AppOracleRouteImport.update({
+  id: '/oracle',
+  path: '/oracle',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMatchesRoute = AppMatchesRouteImport.update({
@@ -96,10 +108,12 @@ export interface FileRoutesByFullPath {
   '/leaderboard': typeof AppLeaderboardRoute
   '/markets': typeof AppMarketsRoute
   '/matches': typeof AppMatchesRouteWithChildren
+  '/oracle': typeof AppOracleRoute
   '/portfolio': typeof AppPortfolioRoute
   '/proofs': typeof AppProofsRoute
   '/replay': typeof AppReplayRoute
   '/settings': typeof AppSettingsRoute
+  '/tasks': typeof AppTasksRoute
   '/matches/$id': typeof AppMatchesIdRoute
 }
 export interface FileRoutesByTo {
@@ -110,10 +124,12 @@ export interface FileRoutesByTo {
   '/leaderboard': typeof AppLeaderboardRoute
   '/markets': typeof AppMarketsRoute
   '/matches': typeof AppMatchesRouteWithChildren
+  '/oracle': typeof AppOracleRoute
   '/portfolio': typeof AppPortfolioRoute
   '/proofs': typeof AppProofsRoute
   '/replay': typeof AppReplayRoute
   '/settings': typeof AppSettingsRoute
+  '/tasks': typeof AppTasksRoute
   '/matches/$id': typeof AppMatchesIdRoute
 }
 export interface FileRoutesById {
@@ -126,10 +142,12 @@ export interface FileRoutesById {
   '/_app/leaderboard': typeof AppLeaderboardRoute
   '/_app/markets': typeof AppMarketsRoute
   '/_app/matches': typeof AppMatchesRouteWithChildren
+  '/_app/oracle': typeof AppOracleRoute
   '/_app/portfolio': typeof AppPortfolioRoute
   '/_app/proofs': typeof AppProofsRoute
   '/_app/replay': typeof AppReplayRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/tasks': typeof AppTasksRoute
   '/_app/matches/$id': typeof AppMatchesIdRoute
 }
 export interface FileRouteTypes {
@@ -142,10 +160,12 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/markets'
     | '/matches'
+    | '/oracle'
     | '/portfolio'
     | '/proofs'
     | '/replay'
     | '/settings'
+    | '/tasks'
     | '/matches/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -156,10 +176,12 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/markets'
     | '/matches'
+    | '/oracle'
     | '/portfolio'
     | '/proofs'
     | '/replay'
     | '/settings'
+    | '/tasks'
     | '/matches/$id'
   id:
     | '__root__'
@@ -171,10 +193,12 @@ export interface FileRouteTypes {
     | '/_app/leaderboard'
     | '/_app/markets'
     | '/_app/matches'
+    | '/_app/oracle'
     | '/_app/portfolio'
     | '/_app/proofs'
     | '/_app/replay'
     | '/_app/settings'
+    | '/_app/tasks'
     | '/_app/matches/$id'
   fileRoutesById: FileRoutesById
 }
@@ -198,6 +222,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/tasks': {
+      id: '/_app/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof AppTasksRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/settings': {
       id: '/_app/settings'
@@ -225,6 +256,13 @@ declare module '@tanstack/react-router' {
       path: '/portfolio'
       fullPath: '/portfolio'
       preLoaderRoute: typeof AppPortfolioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/oracle': {
+      id: '/_app/oracle'
+      path: '/oracle'
+      fullPath: '/oracle'
+      preLoaderRoute: typeof AppOracleRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/matches': {
@@ -298,10 +336,12 @@ interface AppRouteChildren {
   AppLeaderboardRoute: typeof AppLeaderboardRoute
   AppMarketsRoute: typeof AppMarketsRoute
   AppMatchesRoute: typeof AppMatchesRouteWithChildren
+  AppOracleRoute: typeof AppOracleRoute
   AppPortfolioRoute: typeof AppPortfolioRoute
   AppProofsRoute: typeof AppProofsRoute
   AppReplayRoute: typeof AppReplayRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTasksRoute: typeof AppTasksRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -311,10 +351,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppLeaderboardRoute: AppLeaderboardRoute,
   AppMarketsRoute: AppMarketsRoute,
   AppMatchesRoute: AppMatchesRouteWithChildren,
+  AppOracleRoute: AppOracleRoute,
   AppPortfolioRoute: AppPortfolioRoute,
   AppProofsRoute: AppProofsRoute,
   AppReplayRoute: AppReplayRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppTasksRoute: AppTasksRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

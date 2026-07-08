@@ -40,6 +40,8 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -89,6 +91,9 @@
 
   --warning: oklch(0.82 0.17 85);
   --warning-foreground: oklch(0.14 0.02 265);
+
+  --gold: oklch(0.78 0.14 85);
+  --gold-foreground: oklch(0.18 0.03 85);
 
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);

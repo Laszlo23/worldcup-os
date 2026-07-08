@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { getEscrowPdaForExternalMarket, getWorldcupProgramId } from "../escrow";
+import { getEscrowPdaForExternalMarket, getWorldcupProgramId } from "./escrow";
 
 describe("escrow PDA", () => {
   beforeAll(() => {
