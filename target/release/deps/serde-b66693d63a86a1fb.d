@@ -1,0 +1,14 @@
+/Users/poker.vibe/Downloads/superform/target/release/deps/serde-b66693d63a86a1fb.d: /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/poker.vibe/Downloads/superform/target/release/build/serde-dda1ac8c48096525/out/private.rs
+
+/Users/poker.vibe/Downloads/superform/target/release/deps/libserde-b66693d63a86a1fb.rlib: /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/poker.vibe/Downloads/superform/target/release/build/serde-dda1ac8c48096525/out/private.rs
+
+/Users/poker.vibe/Downloads/superform/target/release/deps/libserde-b66693d63a86a1fb.rmeta: /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/poker.vibe/Downloads/superform/target/release/build/serde-dda1ac8c48096525/out/private.rs
+
+/Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/poker.vibe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/poker.vibe/Downloads/superform/target/release/build/serde-dda1ac8c48096525/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/poker.vibe/Downloads/superform/target/release/build/serde-dda1ac8c48096525/out

@@ -1,0 +1,83 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { ConnectWalletButton } from "@/components/connect-wallet";
+import { useAppStore } from "@/lib/store";
+
+export const Route = createFileRoute("/_app/settings")({
+  head: () => ({ meta: [{ title: "Settings — World Cup OS" }] }),
+  component: Settings,
+});
+
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api/client";
+
+function Settings() {
+  const wallet = useAppStore((s) => s.wallet);
+  const { data: health } = useQuery({
+    queryKey: ["health"],
+    queryFn: () =>
+      apiFetch<{ txline: { status: string; serviceLevel: number }; database: boolean; fixtures: { total: number; lastSyncAt: string | null } }>(
+        "/api/health",
+      ),
+  });
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-3xl font-display font-bold">Settings</h1>
+        <p className="text-muted-foreground mt-1">Manage your account, wallet, and notifications.</p>
+      </div>
+
+      <Card className="glass p-6 space-y-4">
+        <h3 className="font-display font-semibold">Wallet</h3>
+        <div className="text-sm">
+          <div className="text-muted-foreground mb-1">Connected address</div>
+          <div className="font-mono text-xs break-all glass rounded-lg p-3">{wallet.address || "Not connected"}</div>
+        </div>
+        <ConnectWalletButton />
+      </Card>
+
+      <Card className="glass p-6 space-y-4">
+        <h3 className="font-display font-semibold">Notifications</h3>
+        {[
+          "Goal scored",
+          "Odds changed significantly",
+          "Market closed",
+          "Prediction won",
+          "Settlement completed",
+          "Reward available to claim",
+        ].map((label) => (
+          <div key={label} className="flex items-center justify-between">
+            <Label>{label}</Label>
+            <Switch defaultChecked />
+          </div>
+        ))}
+      </Card>
+
+      <Card className="glass p-6 space-y-4">
+        <h3 className="font-display font-semibold">TxLINE endpoint</h3>
+        <div className="space-y-2">
+          <Label>SSE feed URL</Label>
+          <Input readOnly value="https://txline.txodds.com/api/scores/stream" className="glass font-mono text-xs" />
+        </div>
+        <div className="space-y-2">
+          <Label>Validation endpoint</Label>
+          <Input readOnly value="https://txline.txodds.com/api/scores/stat-validation?fixtureId=&seq=&statKey=1" className="glass font-mono text-xs" />
+        </div>
+        <div className="space-y-2">
+          <Label>Solana program ID</Label>
+          <Input readOnly value={import.meta.env.VITE_WORLDCUP_PROGRAM_ID || "Wcup111111111111111111111111111111111111111"} className="glass font-mono text-xs" />
+        </div>
+        <div className="text-xs text-muted-foreground">
+          TxLINE status: <span className="text-primary">{health?.txline?.status ?? "checking…"}</span>
+          {" · "}Database: <span className="text-primary">{health?.database ? "connected" : "fallback mode"}</span>
+          {" · "}SL{health?.txline?.serviceLevel ?? 12}
+          {" · "}Fixtures: <span className="text-primary">{health?.fixtures?.total ?? 0}</span>
+        </div>
+      </Card>
+    </div>
+  );
+}
