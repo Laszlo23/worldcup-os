@@ -1,6 +1,7 @@
 #!/bin/bash
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 set -a
-source "$(dirname "$0")/.env"
+source "$ROOT/.env"
 set +a
-cd "$(dirname "$0")"
+cd "$ROOT"
 exec npm run start:hackathon
