@@ -1,22 +1,32 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { LiveProvider } from "@/lib/realtime/live-provider";
+import { SolanaWalletProvider } from "@/lib/wallet/provider";
 import { WalletTxBridge } from "@/lib/wallet/tx-bridge";
 
-const SolanaWalletProvider = lazy(() =>
-  import("@/lib/wallet/provider").then((m) => ({ default: m.SolanaWalletProvider })),
-);
+function ProvidersWithoutWallet({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <LiveProvider />
+      {children}
+    </>
+  );
+}
+
+function ProvidersWithWallet({ children }: { children: ReactNode }) {
+  return (
+    <SolanaWalletProvider>
+      <WalletTxBridge />
+      <LiveProvider />
+      {children}
+    </SolanaWalletProvider>
+  );
+}
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <ClientOnly fallback={children}>
-      <Suspense fallback={children}>
-        <SolanaWalletProvider>
-          <WalletTxBridge />
-          <LiveProvider />
-          {children}
-        </SolanaWalletProvider>
-      </Suspense>
+    <ClientOnly fallback={<ProvidersWithoutWallet>{children}</ProvidersWithoutWallet>}>
+      <ProvidersWithWallet>{children}</ProvidersWithWallet>
     </ClientOnly>
   );
 }

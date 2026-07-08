@@ -23,9 +23,11 @@ declare global {
 }
 
 function hasWalletInjection(wallets: { adapter: { name: string }; readyState: string }[]) {
+  if (typeof window === "undefined") return true;
   const phantomInjected = Boolean(window.phantom?.solana?.isPhantom);
+  const solanaInjected = Boolean((window as Window & { solana?: { isPhantom?: boolean } }).solana?.isPhantom);
   const standardReady = wallets.some((w) => w.readyState === "Installed" || w.readyState === "Loadable");
-  return phantomInjected || standardReady;
+  return phantomInjected || solanaInjected || standardReady || wallets.length > 0;
 }
 
 export function ConnectWalletButton({ size = "default" }: { size?: "sm" | "default" | "lg" }) {
@@ -50,7 +52,7 @@ function ConnectWalletPlaceholder({ size }: { size?: "sm" | "default" | "lg" }) 
 }
 
 function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default" | "lg" }) {
-  const { wallet: adapterWallet, publicKey, connected, connecting, disconnect, signMessage, wallets } = useWallet();
+  const { wallet: adapterWallet, publicKey, connected, connecting, disconnect, signMessage, wallets, select, connect } = useWallet();
   const { setVisible } = useWalletModal();
   const { wallet, connectWallet, disconnectWallet } = useAppStore();
   const authAttempted = useRef<string | null>(null);
@@ -105,12 +107,23 @@ function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default
   }, [connected, wallet.connected, disconnectWallet]);
 
   function handleConnectClick() {
-    if (!hasWalletInjection(wallets)) {
-      setShowInjectionHelp(true);
-      return;
-    }
     setShowInjectionHelp(false);
-    setVisible(true);
+    void (async () => {
+      const installed = wallets.filter((w) => w.readyState === "Installed" || w.readyState === "Loadable");
+      if (installed.length === 1) {
+        try {
+          select(installed[0].adapter.name);
+          await connect();
+          return;
+        } catch {
+          // fall through to modal
+        }
+      }
+      if (!hasWalletInjection(wallets)) {
+        setShowInjectionHelp(true);
+      }
+      setVisible(true);
+    })();
   }
 
   if (!wallet.connected) {
@@ -134,7 +147,7 @@ function ConnectWalletButtonInner({ size = "default" }: { size?: "sm" | "default
             <ul className="text-muted-foreground space-y-1 list-disc pl-4">
               <li>Open this app in a top-level browser tab (not an embedded preview)</li>
               <li>Install the Phantom browser extension</li>
-              <li>For local dev, use <a href="http://localhost:5173" className="text-primary underline">localhost:5173</a></li>
+              <li>For production, use <a href="https://wmos.buildingcultureid.space" className="text-primary underline">wmos.buildingcultureid.space</a> in a top-level tab</li>
             </ul>
           </div>
         )}
