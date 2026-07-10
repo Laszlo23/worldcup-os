@@ -3,14 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { useAppStore } from "@/lib/store";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { authenticateWallet, logoutWallet, refreshWalletSession } from "@/lib/wallet/auth";
 import { useWalletUiReady } from "@/lib/wallet/wallet-ui-ready";
+import { getPhantomProvider, waitForPhantom } from "@/lib/wallet/phantom-connect";
 import {
-  connectPhantomExtension,
-  getPhantomProvider,
-  phantomSignMessage,
-  waitForPhantom,
-} from "@/lib/wallet/phantom-connect";
+  connectInjectedWallet,
+  getOkxProvider,
+  getInjectedWallet,
+  injectedSignMessage,
+  waitForAnyInjectedWallet,
+  type InjectedWallet,
+  type InjectedWalletName,
+} from "@/lib/wallet/injected-wallet";
+import { ensureWalletNetwork, WalletNetworkError } from "@/lib/wallet/ensure-wallet-network";
+import { getClientSolanaNetwork } from "@/lib/wallet/config";
 import {
   consumePhantomConnectIntent,
   isInAppBrowser,
@@ -30,7 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { WalletReadyState } from "@solana/wallet-adapter-base";
+import { WalletReadyState, type WalletName } from "@solana/wallet-adapter-base";
 import { cn } from "@/lib/utils";
 
 export function ConnectWalletButton({
@@ -66,6 +73,7 @@ function ConnectWalletButtonCore({
 }) {
   const { wallet: adapterWallet, publicKey, connected, connecting, disconnect, signMessage, wallets, select, connect } =
     useWallet();
+  const { setVisible } = useWalletModal();
   const { wallet, connectWallet, disconnectWallet } = useAppStore();
   const authAttempted = useRef<string | null>(null);
   const authInFlight = useRef(false);
@@ -106,7 +114,10 @@ function ConnectWalletButtonCore({
       const message = err instanceof Error ? err.message : "Wallet authentication failed";
       setAuthError(message);
       toast.error(message, {
-        description: "Click Retry sign-in and approve the message in Phantom.",
+        description:
+          err instanceof WalletNetworkError
+            ? "Approve the devnet switch in your wallet, then retry."
+            : "Click Retry sign-in and approve the message in your wallet.",
       });
     } finally {
       authInFlight.current = false;
@@ -115,10 +126,10 @@ function ConnectWalletButtonCore({
 
   async function retrySignIn() {
     authAttempted.current = null;
-    const provider = getPhantomProvider();
-    if (provider?.publicKey) {
-      const pk = provider.publicKey.toString();
-      await runAuth(pk, phantomSignMessage(provider));
+    const injected = getInjectedWallet() ?? (wallet.address ? findInjectedBySession(wallet.address) : null);
+    if (injected?.provider.publicKey) {
+      const pk = injected.provider.publicKey.toString();
+      await runAuth(pk, injectedSignMessage(injected));
       return;
     }
     if (connected && publicKey && signMessage) {
@@ -126,10 +137,19 @@ function ConnectWalletButtonCore({
     }
   }
 
-  async function connectWithProvider(provider: NonNullable<ReturnType<typeof getPhantomProvider>>) {
-    const pubkey = await connectPhantomExtension();
-    await runAuth(pubkey, phantomSignMessage(provider));
-    void syncAdapterIfInstalled(pubkey);
+  function findInjectedBySession(address: string): InjectedWallet | null {
+    const okx = getOkxProvider();
+    if (okx?.publicKey?.toString() === address) return { name: "OKX Wallet", provider: okx };
+    const phantom = getPhantomProvider();
+    if (phantom?.publicKey?.toString() === address) return { name: "Phantom", provider: phantom };
+    return null;
+  }
+
+  async function connectWithInjected(injected: InjectedWallet) {
+    await ensureWalletNetwork(injected.name);
+    const pubkey = await connectInjectedWallet(injected);
+    await runAuth(pubkey, injectedSignMessage(injected));
+    void syncAdapterIfInstalled(injected.name, pubkey);
   }
 
   useEffect(() => {
@@ -196,7 +216,7 @@ function ConnectWalletButtonCore({
         return;
       }
       try {
-        await connectWithProvider(provider);
+        await connectWithInjected({ name: "Phantom", provider });
       } catch (err) {
         pendingConnectRan.current = false;
         const message = err instanceof Error ? err.message : "Could not connect wallet";
@@ -209,11 +229,11 @@ function ConnectWalletButtonCore({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.connected]);
 
-  async function syncAdapterIfInstalled(pubkey: string) {
-    const phantomEntry = wallets.find((w) => w.adapter.name === "Phantom");
-    if (phantomEntry?.readyState !== WalletReadyState.Installed) return;
+  async function syncAdapterIfInstalled(name: InjectedWalletName, pubkey: string) {
+    const entry = wallets.find((w) => w.adapter.name === name);
+    if (entry?.readyState !== WalletReadyState.Installed) return;
     try {
-      select("Phantom");
+      select(name as WalletName);
       await connect();
     } catch {
       console.debug("[wallet] adapter sync skipped for", pubkey.slice(0, 8));
@@ -234,10 +254,10 @@ function ConnectWalletButtonCore({
 
     setConnectingMobile(true);
     try {
-      const provider = await waitForPhantom(phantomStatus === "mobile_external" ? 2500 : 1800);
-      if (provider) {
+      const injected = await waitForAnyInjectedWallet(phantomStatus === "mobile_external" ? 2500 : 1800);
+      if (injected) {
         try {
-          await connectWithProvider(provider);
+          await connectWithInjected(injected);
         } catch (err) {
           const message = err instanceof Error ? err.message : "Could not connect wallet";
           console.error("[wallet connect]", err);
@@ -248,6 +268,18 @@ function ConnectWalletButtonCore({
             setShowInjectionHelp(true);
           }
         }
+        return;
+      }
+
+      const hasInstalledAdapter = wallets.some((w) => w.readyState === WalletReadyState.Installed);
+      if (hasInstalledAdapter) {
+        setVisible(true);
+        toast.message("Select your wallet", {
+          description:
+            getClientSolanaNetwork() === "devnet"
+              ? "OKX will prompt to switch to Solana devnet before signing."
+              : undefined,
+        });
         return;
       }
 
@@ -262,8 +294,8 @@ function ConnectWalletButtonCore({
       }
 
       setShowInjectionHelp(true);
-      toast.error("Phantom not detected", {
-        description: "Install Phantom in Chrome/Firefox, then reload this page.",
+      toast.error("Wallet extension not detected", {
+        description: "Install Phantom or OKX Wallet in Chrome/Firefox, then reload.",
       });
     } finally {
       setConnectingMobile(false);
@@ -279,10 +311,18 @@ function ConnectWalletButtonCore({
     } catch {
       // session may already be cleared
     }
-    const provider = getPhantomProvider();
-    if (provider?.isConnected) {
+    const phantom = getPhantomProvider();
+    const okx = getOkxProvider();
+    if (phantom?.isConnected) {
       try {
-        await provider.disconnect();
+        await phantom.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+    if (okx?.isConnected) {
+      try {
+        await okx.disconnect();
       } catch {
         // ignore
       }
@@ -316,7 +356,7 @@ function ConnectWalletButtonCore({
           disabled={connecting || connectingMobile || phantomStatus === "checking"}
           className="bg-gradient-primary text-primary-foreground border-0 hover:opacity-90 glow-primary font-medium w-full sm:w-auto min-h-[44px]"
         >
-          {needsPhantomBrowse && phantomStatus !== "injected" ? <Smartphone className="h-4 w-4" /> : <Wallet className="h-4 w-4" />}
+          {needsPhantomBrowse ? <Smartphone className="h-4 w-4" /> : <Wallet className="h-4 w-4" />}
           {connectLabel}
         </Button>
         {showInjectionHelp && (
@@ -327,7 +367,7 @@ function ConnectWalletButtonCore({
                 ? "Use your phone browser"
                 : needsPhantomBrowse
                   ? "Connect via Phantom browser"
-                  : "Phantom extension required"}
+                  : "Wallet extension required"}
             </div>
             <ul className="text-muted-foreground space-y-1 list-disc pl-4">
               {phantomStatus === "in_app_blocked" || isInAppBrowser() ? (
@@ -344,8 +384,10 @@ function ConnectWalletButtonCore({
                 </>
               ) : (
                 <>
-                  <li>Use Chrome or Firefox with the Phantom extension</li>
-                  <li>Reload after installing Phantom</li>
+                  <li>Use Chrome or Firefox with Phantom or OKX Wallet</li>
+                  <li>OKX auto-prompts to switch to Solana devnet on connect</li>
+                  <li>Phantom: set network to Devnet in wallet settings</li>
+                  <li>Reload after installing a wallet extension</li>
                 </>
               )}
             </ul>

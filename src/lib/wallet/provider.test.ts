@@ -14,7 +14,7 @@ describe("createWalletAdapters", () => {
   it("returns adapters when window is defined", () => {
     vi.stubGlobal("window", {});
     const adapters = createWalletAdapters();
-    expect(adapters.length).toBe(2);
-    expect(adapters.map((a) => a.name)).toEqual(["Phantom", "Solflare"]);
+    expect(adapters.length).toBe(3);
+    expect(adapters.map((a) => a.name)).toEqual(["Phantom", "OKX Wallet", "Solflare"]);
   });
 });

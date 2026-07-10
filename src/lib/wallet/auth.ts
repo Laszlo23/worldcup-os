@@ -19,6 +19,18 @@ export async function authenticateWallet(
   return { balance: res.balance };
 }
 
+export async function refreshWalletSession(): Promise<{ wallet: string; balance: number } | null> {
+  try {
+    return await apiFetch<{ wallet: string; balance: number }>("/api/auth/session");
+  } catch {
+    return null;
+  }
+}
+
 export async function logoutWallet(): Promise<void> {
-  await apiFetch("/api/auth/logout", { method: "POST" });
+  try {
+    await apiFetch("/api/auth/logout", { method: "POST" });
+  } catch {
+    // cookie may already be cleared
+  }
 }
