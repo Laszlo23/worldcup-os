@@ -11,6 +11,7 @@ export type {
   Market,
   Prediction,
   TxLineProof,
+  EscrowProof,
   LeaderRow,
 } from "../mock/types";
 
@@ -48,6 +49,8 @@ export interface AnalyticsSnapshot {
   oddsMove: { t: number; home: number; draw: number; away: number }[];
   totals: {
     tvl: number;
+    volumeToday: number;
+    predictions: number;
     markets: number;
     liveMatches: number;
     users: number;

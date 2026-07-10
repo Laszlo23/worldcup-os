@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { StatCard } from "@/components/stat-card";
+import { DataSourceBadge } from "@/components/data-source-badge";
 import { Activity, DollarSign, TrendingUp, Trophy, Radio, CheckCircle2, ArrowRight } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { useAnalytics, useHealth, useLiveEvents } from "@/lib/queries/hooks";
+import { useAnalytics, useHealth, useLiveEvents, usePortfolio } from "@/lib/queries/hooks";
+import { normalizeLiveEvents } from "@/lib/live-events";
+import { statusCountsForMatches, selectFeaturedMatches } from "@/lib/match-phase";
 import { MatchCard } from "@/components/match-card";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,39 +17,59 @@ export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
-const volumeFallback = Array.from({ length: 24 }).map((_, i) => ({
-  h: `${i}:00`,
-  v: 40 + Math.sin(i / 2) * 20,
-}));
+const volumeFallback: { h: string; v: number }[] = [];
 
 function Dashboard() {
   const matches = useAppStore((s) => s.matches);
   const wallet = useAppStore((s) => s.wallet);
   const preds = useAppStore((s) => s.predictions);
   const { data: analytics } = useAnalytics();
+  const { data: portfolio } = usePortfolio();
   const { data: health } = useHealth();
-  const { data: liveEvents } = useLiveEvents();
+  const { data: liveEventsRaw } = useLiveEvents();
+  const liveEvents = normalizeLiveEvents(liveEventsRaw ?? []);
   const open = preds.filter((p) => p.status === "open").length;
-  const live = matches.filter((m) => m.status === "live" || m.status === "halftime");
-  const volume = analytics?.volume?.length
-    ? analytics.volume.slice(-24).map((d, i) => ({ h: d.date ?? `${i}:00`, v: d.value / 1000 }))
+  const phaseCounts = statusCountsForMatches(matches);
+  const liveNow = phaseCounts.live + phaseCounts.inProgress;
+  const featuredMatches = selectFeaturedMatches(matches, 6);
+  const volumeChart = analytics?.volume?.length
+    ? analytics.volume.slice(-14).map((d) => ({ h: d.date.slice(5), v: d.value }))
     : volumeFallback;
-  const volumeTotal = analytics?.totals?.tvl ? `$${(analytics.totals.tvl / 1_000_000).toFixed(2)}M` : "$4.28M";
+  const volumeToday = analytics?.totals?.volumeToday ?? 0;
+  const volumeTodayLabel = volumeToday > 0
+    ? `$${volumeToday >= 1000 ? (volumeToday / 1000).toFixed(1) + "k" : volumeToday.toFixed(0)}`
+    : "—";
+  const totalVolumeLabel = analytics?.totals?.tvl
+    ? `$${analytics.totals.tvl >= 1000 ? (analytics.totals.tvl / 1000).toFixed(1) + "k" : analytics.totals.tvl.toFixed(0)}`
+    : "—";
+  const myVolumeToday = portfolio
+    ? [...(portfolio.open ?? []), ...(portfolio.won ?? []), ...(portfolio.lost ?? []), ...(portfolio.settled ?? [])]
+        .filter((p) => {
+          const day = new Date(p.placedAt).toISOString().slice(0, 10);
+          const today = new Date().toISOString().slice(0, 10);
+          return day === today;
+        })
+        .reduce((sum, p) => sum + p.amount, 0)
+    : 0;
   const txlineHealthy = health?.txline?.status === "healthy";
   const lastProof = liveEvents?.find((e) => e.event_type === "proof_verified");
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-display font-bold">Welcome back{wallet.connected ? "" : ""}</h1>
-        <p className="text-muted-foreground mt-1">Live World Cup markets, verified by TxLINE.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div>
+          <h1 className="text-3xl font-display font-bold">Welcome back{wallet.connected ? "" : ""}</h1>
+          <p className="text-muted-foreground mt-1">Live World Cup markets, verified by TxLINE.</p>
+        </div>
+        <DataSourceBadge source="txline" />
+        <DataSourceBadge source="indexed" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={Radio} label="Live matches" value={String(live.length)} accent="destructive" />
+        <StatCard icon={Radio} label="Live / in progress" value={String(liveNow)} accent="destructive" />
         <StatCard icon={Activity} label="Open predictions" value={String(open)} accent="accent" />
         <StatCard icon={DollarSign} label="USDC balance" value={wallet.connected ? wallet.balance.toFixed(2) : "—"} />
-        <StatCard icon={TrendingUp} label="24h volume" value={volumeTotal} accent="primary" />
+        <StatCard icon={TrendingUp} label="Today's volume" value={volumeTodayLabel} accent="primary" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -54,26 +77,30 @@ function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-display font-semibold text-lg">Platform volume</h3>
-              <p className="text-xs text-muted-foreground">Prediction volume across all markets · last 24h</p>
+              <p className="text-xs text-muted-foreground">Indexed prediction stakes · daily buckets (14d)</p>
             </div>
-            <span className="text-2xl font-display font-bold gradient-text">{volumeTotal}</span>
+            <span className="text-2xl font-display font-bold gradient-text">{totalVolumeLabel}</span>
           </div>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={volume}>
-                <defs>
-                  <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="oklch(0.72 0.19 155)" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="oklch(0.72 0.19 155)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="oklch(1 0 0 / 6%)" vertical={false} />
-                <XAxis dataKey="h" stroke="oklch(0.68 0.02 260)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="oklch(0.68 0.02 260)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: "oklch(0.18 0.025 265)", border: "1px solid oklch(1 0 0 / 10%)", borderRadius: 12 }} />
-                <Area dataKey="v" stroke="oklch(0.72 0.19 155)" fill="url(#g)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {volumeChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeChart}>
+                  <defs>
+                    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="oklch(0.72 0.19 155)" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="oklch(0.72 0.19 155)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="oklch(1 0 0 / 6%)" vertical={false} />
+                  <XAxis dataKey="h" stroke="oklch(0.68 0.02 260)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="oklch(0.68 0.02 260)" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ background: "oklch(0.18 0.025 265)", border: "1px solid oklch(1 0 0 / 10%)", borderRadius: 12 }} />
+                  <Area dataKey="v" stroke="oklch(0.72 0.19 155)" fill="url(#g)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No prediction volume yet</div>
+            )}
           </div>
         </Card>
 
@@ -101,10 +128,17 @@ function Dashboard() {
             <h2 className="text-xl font-display font-semibold flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" /> Featured matches
             </h2>
-            <Link to="/matches"><Button variant="ghost" size="sm">All matches <ArrowRight className="h-4 w-4" /></Button></Link>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/matches">All matches <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
           </div>
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {matches.slice(0, 6).map((m) => <MatchCard key={m.id} match={m} />)}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))] gap-4">
+            {featuredMatches.map((m) => (
+              <MatchCard key={m.id} match={m} />
+            ))}
+            {featuredMatches.length === 0 && (
+              <p className="text-sm text-muted-foreground col-span-full">No live or upcoming fixtures right now. Finished matches are on the Matches page.</p>
+            )}
           </div>
         </Card>
 
@@ -113,12 +147,13 @@ function Dashboard() {
           <div className="space-y-4">
             <Row label="Predictions" value={String(preds.length)} />
             <Row label="Open" value={String(open)} />
+            <Row label="Today's volume" value={wallet.connected && myVolumeToday > 0 ? `${myVolumeToday.toFixed(0)} USDC` : wallet.connected ? "—" : "—"} />
             <Row label="Won" value={String(preds.filter((p) => p.status === "won" || p.status === "settled").length)} />
             <Row label="Win rate" value={preds.length ? `${Math.round((preds.filter((p) => p.status === "won" || p.status === "settled").length / preds.length) * 100)}%` : "—"} />
           </div>
-          <Link to="/portfolio" className="block mt-6">
-            <Button variant="outline" className="w-full glass">Open portfolio <ArrowRight className="h-4 w-4" /></Button>
-          </Link>
+          <Button asChild variant="outline" className="w-full glass mt-6">
+            <Link to="/portfolio" className="w-full">Open portfolio <ArrowRight className="h-4 w-4" /></Link>
+          </Button>
         </Card>
       </div>
 
@@ -139,7 +174,9 @@ function Dashboard() {
             {lastProof ? ` · last proof ${new Date(lastProof.created_at).toLocaleTimeString()}` : ""}
           </div>
         </div>
-        <Link to="/proofs"><Button variant="outline" size="sm" className="glass">View proofs</Button></Link>
+        <Button asChild variant="outline" size="sm" className="glass">
+          <Link to="/proofs">View proofs</Link>
+        </Button>
       </div>
     </div>
   );

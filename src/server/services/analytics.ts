@@ -1,4 +1,4 @@
-import { hasDatabase, useMockFallback } from "../config/env";
+import { hasDatabase } from "../config/env";
 import { query } from "../db/postgres";
 import type { AnalyticsSnapshot } from "@/lib/types";
 
@@ -8,61 +8,95 @@ const EMPTY_ANALYTICS: AnalyticsSnapshot = {
   liquidity: [],
   settlements: [],
   oddsMove: [],
-  totals: { tvl: 0, markets: 0, liveMatches: 0, users: 0, transactions: 0 },
+  totals: { tvl: 0, volumeToday: 0, predictions: 0, markets: 0, liveMatches: 0, users: 0, transactions: 0 },
 };
 
-export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
-  if (useMockFallback()) {
-    const days = Array.from({ length: 14 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (13 - i));
-      return d.toISOString().slice(5, 10);
-    });
-    return {
-      volume: days.map((date, i) => ({ date, value: 120_000 + i * 5_000 })),
-      users: days.map((date, i) => ({ date, value: 800 + i * 10 })),
-      liquidity: days.map((date, i) => ({ date, value: 2_000_000 + i * 20_000 })),
-      settlements: days.map((date, i) => ({ date, value: 12 + (i % 5) })),
-      oddsMove: Array.from({ length: 30 }).map((_, i) => ({
-        t: Date.now() - (30 - i) * 60_000,
-        home: 1.8 + Math.sin(i / 4) * 0.2,
-        draw: 3.2 + Math.cos(i / 5) * 0.1,
-        away: 2.5 + Math.sin(i / 3) * 0.15,
-      })),
-      totals: {
-        tvl: 4_280_000,
-        markets: 128,
-        liveMatches: 0,
-        users: 12_842,
-        transactions: 48_291,
-      },
-    };
-  }
+function formatDay(iso: string): string {
+  return iso.slice(0, 10);
+}
 
+export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
   if (!hasDatabase()) return EMPTY_ANALYTICS;
 
-  const stats = await query<{ scope: string; bucket: string; metrics: Record<string, unknown> }>("select scope, bucket, metrics from statistics");
-  const volume = stats.find((s) => s.scope === "platform" && s.bucket === "volume");
-  const users = stats.find((s) => s.scope === "platform" && s.bucket === "users");
-  const liquidity = stats.find((s) => s.scope === "platform" && s.bucket === "liquidity");
-  const settlements = stats.find((s) => s.scope === "platform" && s.bucket === "settlements");
-  const totals = stats.find((s) => s.scope === "platform" && s.bucket === "totals");
-
-  const [marketCountRow, liveCountRow, userCountRow, txCountRow] = await Promise.all([
+  const [
+    volumeRows,
+    userRows,
+    liquidityRow,
+    settlementRows,
+    marketCountRow,
+    liveCountRow,
+    userCountRow,
+    txCountRow,
+    tvlRow,
+    volumeTodayRow,
+    predictionsCountRow,
+  ] = await Promise.all([
+    query<{ day: string; volume: string }>(
+      `
+        select to_char(date_trunc('day', placed_at), 'YYYY-MM-DD') as day,
+               coalesce(sum(amount), 0)::text as volume
+        from predictions
+        where placed_at >= now() - interval '14 days'
+        group by 1
+        order by 1 asc
+      `,
+    ),
+    query<{ day: string; users: string }>(
+      `
+        select to_char(date_trunc('day', joined_at), 'YYYY-MM-DD') as day,
+               count(*)::text as users
+        from users
+        where joined_at >= now() - interval '14 days'
+        group by 1
+        order by 1 asc
+      `,
+    ),
+    query<{ liquidity: string }>(
+      "select coalesce(sum(amount), 0)::text as liquidity from escrows where status = 'locked'",
+    ),
+    query<{ day: string; settlements: string }>(
+      `
+        select to_char(date_trunc('day', validated_at), 'YYYY-MM-DD') as day,
+               count(*)::text as settlements
+        from proofs
+        where validation_status = 'verified' and validated_at >= now() - interval '14 days'
+        group by 1
+        order by 1 asc
+      `,
+    ),
     query<{ count: string }>("select count(*)::text as count from markets"),
     query<{ count: string }>("select count(*)::text as count from matches where status in ('live', 'halftime')"),
     query<{ count: string }>("select count(*)::text as count from users"),
     query<{ count: string }>("select count(*)::text as count from transactions"),
+    query<{ tvl: string }>("select coalesce(sum(amount), 0)::text as tvl from predictions"),
+    query<{ volume: string }>(
+      "select coalesce(sum(amount), 0)::text as volume from predictions where placed_at::date = current_date",
+    ),
+    query<{ count: string }>("select count(*)::text as count from predictions"),
   ]);
 
+  const volume = volumeRows.map((r) => ({ date: formatDay(r.day), value: Number(r.volume) }));
+  const users = userRows.map((r) => ({ date: formatDay(r.day), value: Number(r.users) }));
+  const liquidityLocked = Number(liquidityRow[0]?.liquidity ?? 0);
+  const liquidity = liquidityLocked > 0
+    ? volumeRows.map((r) => ({ date: formatDay(r.day), value: liquidityLocked }))
+    : [];
+  const settlements = settlementRows.map((r) => ({ date: formatDay(r.day), value: Number(r.settlements) }));
+
+  const tvl = Number(tvlRow[0]?.tvl ?? 0);
+  const volumeToday = Number(volumeTodayRow[0]?.volume ?? 0);
+  const predictions = Number(predictionsCountRow[0]?.count ?? 0);
+
   return {
-    volume: (volume?.metrics as { date: string; value: number }[]) ?? [],
-    users: (users?.metrics as { date: string; value: number }[]) ?? [],
-    liquidity: (liquidity?.metrics as { date: string; value: number }[]) ?? [],
-    settlements: (settlements?.metrics as { date: string; value: number }[]) ?? [],
-    oddsMove: (totals?.metrics as { oddsMove?: AnalyticsSnapshot["oddsMove"] })?.oddsMove ?? [],
+    volume,
+    users,
+    liquidity,
+    settlements,
+    oddsMove: [],
     totals: {
-      tvl: Number((totals?.metrics as { tvl?: number })?.tvl ?? 0),
+      tvl,
+      volumeToday,
+      predictions,
       markets: Number(marketCountRow[0]?.count ?? 0),
       liveMatches: Number(liveCountRow[0]?.count ?? 0),
       users: Number(userCountRow[0]?.count ?? 0),
