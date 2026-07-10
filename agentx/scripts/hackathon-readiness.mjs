@@ -54,8 +54,16 @@ async function main() {
   );
 
   const { body: matches } = await fetchJson("/api/live-matches");
-  const count = matches.matches?.length ?? 0;
+  const list = matches.matches ?? [];
+  const count = list.length;
+  const demoCount = list.filter((m) => String(m.externalId ?? "").startsWith("demo-")).length;
   record("matches", "Match feed", count > 0 ? "pass" : "warn", `${count} matches`);
+  record(
+    "real_txline_data",
+    "No demo/mock matches",
+    demoCount === 0 ? "pass" : "fail",
+    demoCount === 0 ? "all fixtures from TxLINE" : `${demoCount} demo-* fixture(s) still in DB`,
+  );
 
   const { body: signals } = await fetchJson("/api/signals?limit=5");
   record("signals", "Signal engine", (signals.signals?.length ?? 0) > 0 ? "pass" : "warn", `${signals.signals?.length ?? 0} signals`);

@@ -19,6 +19,9 @@ function MatchRow({ match }: { match: Match }) {
               {match.homeTeam.name} vs {match.awayTeam.name}
             </p>
             <p className="text-xs text-muted-foreground">{match.stage}</p>
+            {match.externalId && !match.externalId.startsWith("demo-") ? (
+              <p className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-green">TxLINE · {match.externalId}</p>
+            ) : null}
           </div>
           <span className="text-lg">{match.awayTeam.flag}</span>
         </div>

@@ -12,7 +12,7 @@ from app.config import settings
 from app.ingestion.state import ingestion_state, touch_event
 from app.ingestion.stream_runner import run_scores_stream, run_odds_stream
 from app.ingestion.poll_fallback import run_poll_fallback
-from app.ingestion.worker import sync_fixtures, get_demo_tick, upsert_from_payload
+from app.ingestion.worker import sync_fixtures, get_demo_tick, upsert_from_payload, purge_demo_data
 from app.signals.engine import run_signal_cycle, _serialize_signal
 from app.agents.strategies import process_signal_for_agents, get_agents_leaderboard
 from app.agents.settlement import resolve_finished_matches
@@ -62,17 +62,15 @@ def _serialize_match(m: dict) -> dict:
 
 
 async def demo_ingest_loop() -> None:
+    """Only runs when DEMO_MODE=true — never injects fake data in production."""
     while True:
         try:
-            live_ok = ingestion_state["scores_connected"] or ingestion_state["odds_connected"]
-            use_demo = settings.demo_mode or not live_ok
-            if use_demo:
-                tick = await get_demo_tick()
-                if tick:
-                    match = await upsert_from_payload(tick, tick.get("_event_type", "score"))
-                    if match:
-                        touch_event()
-                        await _broadcast("matches", {"type": "match_update", "match": _serialize_match(match)})
+            tick = await get_demo_tick()
+            if tick:
+                match = await upsert_from_payload(tick, tick.get("_event_type", "score"))
+                if match:
+                    touch_event()
+                    await _broadcast("matches", {"type": "match_update", "match": _serialize_match(match)})
         except Exception as e:
             ingestion_state["last_error"] = str(e)
             print(f"[demo_ingest] error: {e}")
@@ -112,11 +110,16 @@ async def lifespan(app: FastAPI):
     try:
         from app.repository import check_db
         if await check_db():
+            if not settings.demo_mode:
+                removed = await purge_demo_data()
+                if removed:
+                    print(f"[startup] purged {removed} demo match(es)")
             await sync_fixtures()
             await db.ensure_agents()
-    except Exception:
-        pass
-    tasks.append(asyncio.create_task(demo_ingest_loop()))
+    except Exception as e:
+        print(f"[startup] fixture sync warning: {e}")
+    if settings.demo_mode:
+        tasks.append(asyncio.create_task(demo_ingest_loop()))
     tasks.append(asyncio.create_task(signal_loop()))
     if not settings.demo_mode:
         tasks.append(asyncio.create_task(run_scores_stream(_broadcast, _serialize_match)))

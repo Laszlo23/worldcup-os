@@ -184,6 +184,13 @@ async def insert_match_event(data: dict) -> dict:
     return data
 
 
+async def purge_demo_matches() -> int:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.purge_demo_matches()
+    return 0
+
+
 async def close_pool() -> None:
     try:
         from app import db as pgdb

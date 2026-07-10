@@ -35,7 +35,6 @@ set_kv APP_URL https://agentx.buildingcultureid.space
 set_kv SOLANA_NETWORK devnet
 set_kv NEXT_PUBLIC_SOLANA_NETWORK devnet
 set_kv NEXT_PUBLIC_SOLANA_RPC_URL https://api.devnet.solana.com
-set_kv TXLINE_API_ORIGIN https://txline.txodds.com
 
 for key in TXLINE_GUEST_JWT TXLINE_API_TOKEN TXLINE_API_ORIGIN USDC_MINT NEXT_PUBLIC_USDC_MINT SETTLEMENT_AUTHORITY_SECRET ANCHOR_AUTHORITY_SECRET SESSION_SECRET; do
   if [ -f "$WMOS_ENV" ] && grep -q "^${key}=" "$WMOS_ENV"; then
@@ -45,6 +44,9 @@ for key in TXLINE_GUEST_JWT TXLINE_API_TOKEN TXLINE_API_ORIGIN USDC_MINT NEXT_PU
     grep "^${key}=" "$WMOS_ENV" >> "$ENV_FILE"
   fi
 done
+
+# Fallback if wmos env missing — same dev origin World Cup OS uses
+grep -q '^TXLINE_API_ORIGIN=' "$ENV_FILE" || set_kv TXLINE_API_ORIGIN https://txline-dev.txodds.com
 
 if grep -qE '^TXLINE_(GUEST_JWT|API_TOKEN)=' "$ENV_FILE"; then
   set_kv DEMO_MODE false

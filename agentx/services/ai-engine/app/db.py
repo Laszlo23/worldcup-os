@@ -136,12 +136,35 @@ async def get_match_by_id(match_id: str) -> dict | None:
 
 
 async def list_matches(status: str | None = None) -> list[dict]:
+    demo_filter = "" if settings.demo_mode else " AND external_id NOT LIKE 'demo-%'"
+    junk_filter = " AND external_id NOT IN ('unknown') AND external_id NOT LIKE '%None%' AND external_id NOT LIKE 'txline-%'"
     if status:
         return await fetch_all(
-            "SELECT * FROM matches WHERE status = $1 ORDER BY kickoff_at DESC NULLS LAST",
+            f"SELECT * FROM matches WHERE status = $1{demo_filter}{junk_filter} ORDER BY kickoff_at DESC NULLS LAST",
             status,
         )
-    return await fetch_all("SELECT * FROM matches ORDER BY kickoff_at DESC NULLS LAST")
+    return await fetch_all(
+        f"SELECT * FROM matches WHERE 1=1{demo_filter}{junk_filter} ORDER BY kickoff_at DESC NULLS LAST"
+    )
+
+
+async def purge_demo_matches() -> int:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            DELETE FROM matches
+            WHERE external_id LIKE 'demo-%'
+               OR external_id = 'unknown'
+               OR external_id LIKE '%None%'
+               OR external_id LIKE 'txline-%'
+            """
+        )
+    # asyncpg returns e.g. "DELETE 4"
+    try:
+        return int(str(result).split()[-1])
+    except (ValueError, IndexError):
+        return 0
 
 
 async def insert_match_event(data: dict) -> dict:

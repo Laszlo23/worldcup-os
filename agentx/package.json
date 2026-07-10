@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "node scripts/seed-demo.mjs",
+    "db:purge-demo": "node scripts/purge-demo-data.mjs",
     "demo:run": "node scripts/demo-orchestrator.mjs",
     "deploy:prod": "bash scripts/deploy-prod.sh",
     "test:hackathon-readiness": "node scripts/hackathon-readiness.mjs"

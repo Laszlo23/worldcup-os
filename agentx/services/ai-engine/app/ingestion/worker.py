@@ -1,43 +1,16 @@
 import json
+import logging
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 from app import repository as db
-from app.ingestion.demo_feed import DEMO_MATCHES, simulate_demo_tick
-from app.ingestion.txline_client import TxLineClient
 from app.config import settings
+from app.ingestion.demo_feed import DEMO_MATCHES, simulate_demo_tick
+from app.ingestion.txline_adapters import fixture_to_match_row, normalize_score_payload
+from app.ingestion.txline_client import TxLineClient
 
-
-def _team(name: str, flag: str = "") -> dict:
-    return {"name": name, "flag": flag}
-
-
-def _normalize_fixture(f: dict) -> dict:
-    fixture_id = f.get("fixtureId") or f.get("id") or f.get("fixture_id")
-    home = f.get("homeTeam") or f.get("home") or {}
-    away = f.get("awayTeam") or f.get("away") or {}
-    home_name = home.get("name") if isinstance(home, dict) else str(home)
-    away_name = away.get("name") if isinstance(away, dict) else str(away)
-    return {
-        "external_id": f"txline-{fixture_id}",
-        "txline_fixture_id": int(fixture_id) if fixture_id else None,
-        "home_team": _team(home_name, home.get("flag", "") if isinstance(home, dict) else ""),
-        "away_team": _team(away_name, away.get("flag", "") if isinstance(away, dict) else ""),
-        "score_home": int(f.get("scoreHome") or f.get("homeScore") or 0),
-        "score_away": int(f.get("scoreAway") or f.get("awayScore") or 0),
-        "status": str(f.get("status") or "scheduled").lower(),
-        "minute": int(f.get("minute") or f.get("matchMinute") or 0),
-        "stadium": f.get("stadium") or f.get("venue"),
-        "stage": f.get("stage") or f.get("competition"),
-        "kickoff_at": f.get("kickoffAt") or f.get("startTime"),
-        "stats": f.get("stats") or {},
-        "odds": f.get("odds") or {},
-        "odds_history": [],
-        "momentum": 50.0,
-        "win_probability": {},
-        "raw_payload": f,
-    }
+logger = logging.getLogger(__name__)
 
 
 def _calc_win_probability(odds: dict, momentum: float) -> dict:
@@ -46,7 +19,11 @@ def _calc_win_probability(odds: dict, momentum: float) -> dict:
     away = float(odds.get("away") or 2.8)
     inv = [1 / home, 1 / draw, 1 / away]
     total = sum(inv) or 1
-    base = {"home": round(inv[0] / total * 100, 1), "draw": round(inv[1] / total * 100, 1), "away": round(inv[2] / total * 100, 1)}
+    base = {
+        "home": round(inv[0] / total * 100, 1),
+        "draw": round(inv[1] / total * 100, 1),
+        "away": round(inv[2] / total * 100, 1),
+    }
     shift = (momentum - 50) / 100
     base["home"] = min(95, max(5, round(base["home"] + shift * 15, 1)))
     base["away"] = min(95, max(5, round(base["away"] - shift * 15, 1)))
@@ -54,15 +31,24 @@ def _calc_win_probability(odds: dict, momentum: float) -> dict:
     return base
 
 
-async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict | None:
-    fixture_id = payload.get("fixtureId") or payload.get("fixture_id")
-    external_id = payload.get("external_id") or (f"txline-{fixture_id}" if fixture_id else "unknown")
-    existing = await db.get_match_by_external_id(external_id)
+def _coerce_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Ensure TxLINE PascalCase score rows become upsert-friendly dicts."""
+    normalized = normalize_score_payload(payload)
+    if normalized:
+        return {**payload, **normalized}
+    return payload
 
-    if existing is None and external_id.startswith("demo-"):
-        seed = next((m for m in DEMO_MATCHES if m["external_id"] == external_id), None)
-        if seed:
-            existing = await db.upsert_match(seed)
+
+async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict | None:
+    payload = _coerce_payload(payload)
+    fixture_id = payload.get("fixtureId") or payload.get("fixture_id")
+    external_id = payload.get("external_id") or (f"fx-{fixture_id}" if fixture_id else None)
+    if not external_id or external_id == "unknown" or "None" in external_id:
+        return None
+    if external_id.startswith("demo-") and not settings.demo_mode:
+        return None
+
+    existing = await db.get_match_by_external_id(external_id)
 
     home_score = int(payload.get("homeScore") or payload.get("scoreHome") or (existing or {}).get("score_home", 0))
     away_score = int(payload.get("awayScore") or payload.get("scoreAway") or (existing or {}).get("score_away", 0))
@@ -83,7 +69,9 @@ async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict 
     if isinstance(history, str):
         history = json.loads(history)
     if event_type == "odds" and odds:
-        history = (history or [])[-29:] + [{"t": int(time.time() * 1000), **{k: odds[k] for k in ("home", "draw", "away") if k in odds}}]
+        history = (history or [])[-29:] + [
+            {"t": int(time.time() * 1000), **{k: odds[k] for k in ("home", "draw", "away") if k in odds}}
+        ]
 
     stats = existing.get("stats", {}) if existing else {}
     if isinstance(stats, str):
@@ -92,7 +80,7 @@ async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict 
         stats = {**stats, **payload["stats"]}
 
     momentum = float(existing.get("momentum", 50) if existing else 50)
-    if event_type == "score" and home_score != (existing or {}).get("score_home", 0):
+    if event_type == "score" and existing and (home_score != existing.get("score_home", 0) or away_score != existing.get("score_away", 0)):
         momentum = min(95, momentum + 8)
     elif event_type == "odds" and history and len(history) >= 2:
         prev, curr = history[-2], history[-1]
@@ -101,15 +89,19 @@ async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict 
         elif curr.get("home", 0) > prev.get("home", 0):
             momentum = max(5, momentum - 5)
 
-    home_team = existing.get("home_team") if existing else payload.get("home_team", _team("Home"))
-    away_team = existing.get("away_team") if existing else payload.get("away_team", _team("Away"))
+    home_team = existing.get("home_team") if existing else payload.get("home_team")
+    away_team = existing.get("away_team") if existing else payload.get("away_team")
     if isinstance(home_team, str):
         home_team = json.loads(home_team)
     if isinstance(away_team, str):
         away_team = json.loads(away_team)
+    if not home_team:
+        home_team = {"name": "Home", "flag": "⚽"}
+    if not away_team:
+        away_team = {"name": "Away", "flag": "⚽"}
 
-    status = str(payload.get("status") or (existing or {}).get("status", "live")).lower()
-    if minute >= 90:
+    status = str(payload.get("status") or (existing or {}).get("status", "scheduled")).lower()
+    if minute >= 90 and status == "live":
         status = "finished"
 
     match_data = {
@@ -134,16 +126,20 @@ async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict 
     row = await db.upsert_match(match_data)
 
     if event_type == "score" and existing and (home_score != existing.get("score_home") or away_score != existing.get("score_away")):
-        scoring_team = home_team["name"] if home_score > existing.get("score_home", 0) else away_team["name"]
-        await db.insert_match_event({
-            "match_id": row["id"],
-            "event_type": "goal",
-            "minute": minute,
-            "team": scoring_team,
-            "detail": f"Goal {scoring_team}",
-            "txline_seq": payload.get("seq"),
-            "payload": payload,
-        })
+        home_name = home_team.get("name", "Home") if isinstance(home_team, dict) else "Home"
+        away_name = away_team.get("name", "Away") if isinstance(away_team, dict) else "Away"
+        scoring_team = home_name if home_score > existing.get("score_home", 0) else away_name
+        await db.insert_match_event(
+            {
+                "match_id": row["id"],
+                "event_type": "goal",
+                "minute": minute,
+                "team": scoring_team,
+                "detail": f"Goal {scoring_team}",
+                "txline_seq": payload.get("seq"),
+                "payload": payload,
+            }
+        )
     return row
 
 
@@ -157,17 +153,27 @@ async def sync_fixtures() -> list[dict]:
     try:
         client = TxLineClient()
         fixtures = await client.get_fixtures_snapshot()
+        if not fixtures:
+            logger.warning("[sync_fixtures] TxLINE returned zero fixtures")
+            return []
         results = []
         for f in fixtures:
-            normalized = _normalize_fixture(f)
+            if not isinstance(f, dict):
+                continue
+            normalized = fixture_to_match_row(f)
             row = await db.upsert_match(normalized)
             results.append(row)
+        logger.info("[sync_fixtures] synced %s fixtures from TxLINE", len(results))
         return results
-    except Exception:
-        results = []
-        for m in DEMO_MATCHES:
-            results.append(await db.upsert_match(m))
-        return results
+    except Exception as e:
+        logger.exception("[sync_fixtures] failed: %s", e)
+        return []
+
+
+async def purge_demo_data() -> int:
+    if settings.demo_mode:
+        return 0
+    return await db.purge_demo_matches()
 
 
 async def get_demo_tick() -> dict | None:
