@@ -34,7 +34,7 @@ Follow this script to verify the hackathon submission end-to-end.
 - Go to `/replay` (sidebar: **Replay**)
 - Pick preset: **Argentina vs Brazil** or **France vs Germany**
 - Click **Start replay** — watch timeline steps light up
-- Mock fallback runs automatically if TxLINE API unavailable
+- Mock fallback runs automatically if TxLINE API unavailable (offline Argentina/Brazil preset)
 - When done, click through to Oracle + Proof Certificate links
 
 ### 5. Proof certificate (30s)
@@ -46,6 +46,27 @@ Follow this script to verify the hackathon submission end-to-end.
 - Go to `/tasks`
 - Show featured task + filter pills (All / Easy / Community / Builder)
 - Complete a task — points persist in localStorage
+
+## Hackathon readiness proof (submission)
+
+Run the full audit against production (or local):
+
+```bash
+# Production
+BASE_URL=http://187.124.18.204:3017 npm run test:hackathon-readiness
+
+# Public domain
+BASE_URL=https://wmos.buildingcultureid.space npm run test:hackathon-readiness
+```
+
+This checks: health + Postgres, TxLINE credentials/API, Solana program on devnet, wallet auth (nonce domain + full sign/verify roundtrip), match feed honesty, on-chain escrow proofs, proof API, stream, settlement lock, and key pages.
+
+**Outputs** (attach to submission or paste in demo video description):
+
+- `hackathon-readiness-report.json` — machine-readable evidence with timestamps
+- `hackathon-readiness-report.md` — human-readable summary for judges
+
+Exit code `0` = READY (no critical failures). Warnings (e.g. no TxLINE cert until a real fixture finishes) are expected.
 
 ## API smoke checks
 

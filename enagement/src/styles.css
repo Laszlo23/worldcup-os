@@ -1,0 +1,171 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * MatchMind AI — Broadcast Electric Luxury design system.
+ * Dark-only. Stadium green + electric cyan on obsidian.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-gold: var(--gold);
+  --color-live: var(--live);
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.75rem;
+  /* Obsidian pitch */
+  --background: oklch(0.14 0.015 240);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.18 0.018 240);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.16 0.015 240);
+  --popover-foreground: oklch(0.98 0 0);
+  /* Stadium green */
+  --primary: oklch(0.82 0.22 155);
+  --primary-foreground: oklch(0.14 0.015 240);
+  --secondary: oklch(0.24 0.02 240);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.22 0.018 240);
+  --muted-foreground: oklch(0.65 0.02 240);
+  /* Electric cyan */
+  --accent: oklch(0.82 0.16 210);
+  --accent-foreground: oklch(0.14 0.015 240);
+  --destructive: oklch(0.68 0.24 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.28 0.02 240);
+  --input: oklch(0.28 0.02 240);
+  --ring: oklch(0.82 0.22 155);
+  --gold: oklch(0.82 0.15 85);
+  --live: oklch(0.65 0.25 25);
+  --chart-1: oklch(0.82 0.22 155);
+  --chart-2: oklch(0.82 0.16 210);
+  --chart-3: oklch(0.82 0.15 85);
+  --chart-4: oklch(0.68 0.24 25);
+  --chart-5: oklch(0.6 0.2 300);
+  --sidebar: oklch(0.16 0.015 240);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.82 0.22 155);
+  --sidebar-primary-foreground: oklch(0.14 0.015 240);
+  --sidebar-accent: oklch(0.24 0.02 240);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.28 0.02 240);
+  --sidebar-ring: oklch(0.82 0.22 155);
+}
+
+.dark {
+  /* App is dark-only; .dark inherits from :root. */
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+  }
+  html { color-scheme: dark; }
+}
+
+@keyframes mm-pulse-glow {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px var(--color-primary)); }
+  50% { opacity: 0.75; filter: drop-shadow(0 0 14px var(--color-primary)); }
+}
+@keyframes mm-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes mm-live-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-live) 60%, transparent); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 6px transparent; }
+}
+
+@utility mm-live-dot { animation: mm-live-dot 1.4s ease-in-out infinite; }
+@utility mm-pulse-glow { animation: mm-pulse-glow 2s ease-in-out infinite; }
+@utility mm-shimmer {
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, white 8%, transparent), transparent);
+  background-size: 200% 100%;
+  animation: mm-shimmer 3.5s linear infinite;
+}
+@utility mm-hairline { border: 1px solid color-mix(in oklab, white 8%, transparent); }
+@utility mm-glass {
+  background: color-mix(in oklab, var(--color-background) 75%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+@utility text-glow-primary {
+  text-shadow: 0 0 20px color-mix(in oklab, var(--color-primary) 60%, transparent);
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+.pitch-grid {
+  background-image:
+    linear-gradient(oklch(0.78 0.2 155 / 8%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.78 0.2 155 / 8%) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 75%);
+}
+
+/* Solana wallet modal above sticky header, bottom nav, and soccer backdrop */
+.wallet-adapter-modal-wrapper {
+  z-index: 99999 !important;
+}
+.wallet-adapter-modal {
+  z-index: 100000 !important;
+}
+.wallet-adapter-dropdown {
+  z-index: 99998 !important;
+}
+
+/* Silence hydration mismatches from wallet extensions injecting scripts */
+html > body > script[id$="-provider"] { display: none; }

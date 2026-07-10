@@ -9,11 +9,17 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 export default defineConfig({
   vite: {
     server: {
-      allowedHosts: ["localhost", "wmos.buildingcultureid.space"],
+      allowedHosts: ["localhost", "wmos.buildingcultureid.space", "187.124.18.204"],
       proxy: {
         "/api": {
           target: process.env.VITE_API_PROXY_TARGET ?? "http://127.0.0.1:3005",
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq, req) => {
+              const host = req.headers.host;
+              if (host) proxyReq.setHeader("X-Forwarded-Host", host);
+            });
+          },
         },
       },
     },

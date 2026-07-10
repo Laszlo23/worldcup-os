@@ -1,11 +1,10 @@
 import { defineHandler } from "nitro";
 import { clearSessionCookie } from "@/server/services/session";
-import { errorResponse, jsonResponse, rateLimit, requireSession } from "@/server/middleware/http";
+import { errorResponse, jsonResponse, rateLimit, requireMutationOrigin } from "@/server/middleware/http";
 
 export default defineHandler(async (event) => {
   if (!(await rateLimit(event, "auth-logout", 30))) return errorResponse("Rate limit exceeded", 429);
-  const wallet = await requireSession(event);
-  if (wallet instanceof Response) return wallet;
-
+  if (!requireMutationOrigin(event)) return errorResponse("Forbidden", 403);
+  // Always clear cookie — session may already be expired when reconnecting
   return jsonResponse({ ok: true }, 200, { "Set-Cookie": clearSessionCookie() });
 });

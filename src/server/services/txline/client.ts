@@ -71,20 +71,45 @@ export function parseSseData(data: string): unknown {
   }
 }
 
+function bytesToHex(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return "";
+  const hex = value.map((b) => Number(b).toString(16).padStart(2, "0")).join("");
+  return hex ? `0x${hex}` : "";
+}
+
 export function parseStatValidationResponse(
   fixtureId: number,
   seq: number,
   statKey: number,
   data: Record<string, unknown>,
 ): StatValidationProof {
+  const summary = data.summary as Record<string, unknown> | undefined;
+  const statProof = Array.isArray(data.statProof) ? (data.statProof as { hash?: number[] }[]) : [];
+  const subTreeProof = Array.isArray(data.subTreeProof) ? (data.subTreeProof as { hash?: number[] }[]) : [];
+  const nonZeroLeaf = [...statProof, ...subTreeProof].map((p) => p.hash).find((h) => Array.isArray(h) && h.some((b) => b !== 0));
+  const leafHash = nonZeroLeaf ?? statProof[statProof.length - 1]?.hash ?? statProof[0]?.hash;
+  const statToProve = data.statToProve as Record<string, unknown> | undefined;
+
+  const merkleRoot =
+    String(data.merkleRoot ?? data.merkle_root ?? "").trim() ||
+    bytesToHex(summary?.eventStatsSubTreeRoot) ||
+    bytesToHex(data.eventStatRoot);
+
+  const proofHash =
+    String(data.proofHash ?? data.proof_hash ?? data.hash ?? "").trim() || bytesToHex(leafHash);
+
+  const signature =
+    String(data.signature ?? "").trim() ||
+    (merkleRoot ? `txline-stat:${fixtureId}:${seq}:${statKey}:${merkleRoot.slice(0, 42)}` : "");
+
   return {
     fixtureId,
     seq,
     statKey,
-    value: Number(data.value ?? data.statValue ?? 0),
-    merkleRoot: String(data.merkleRoot ?? data.merkle_root ?? ""),
-    proofHash: String(data.proofHash ?? data.proof_hash ?? data.hash ?? ""),
-    signature: String(data.signature ?? ""),
+    value: Number(statToProve?.value ?? data.value ?? data.statValue ?? 0),
+    merkleRoot,
+    proofHash,
+    signature,
     payload: data,
   };
 }
@@ -131,6 +156,18 @@ export class TxLineClient {
     if (!headers) return [];
     const res = await this.http.get(`/scores/historical/${fixtureId}`, { headers });
     return Array.isArray(res.data) ? res.data : [];
+  }
+
+  /** Live + delayed score state for a fixture (primary feed when SSE is quiet). */
+  async getScoresSnapshot(fixtureId: number): Promise<unknown[]> {
+    const headers = await this.authHeaders();
+    if (!headers) return [];
+    try {
+      const res = await this.http.get(`/scores/snapshot/${fixtureId}`, { headers });
+      return Array.isArray(res.data) ? res.data : [];
+    } catch {
+      return [];
+    }
   }
 
   async getStatValidation(

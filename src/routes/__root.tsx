@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppProviders } from "@/components/app-providers";
+import { canonicalUrl, defaultMeta, organizationJsonLd } from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -53,24 +54,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "World Cup OS — Predict the World Cup. Trust the Blockchain." },
-      { name: "description", content: "Real-time World Cup prediction markets powered by TxLINE with automatic on-chain settlement on Solana." },
+      { title: defaultMeta.title },
+      { name: "description", content: defaultMeta.description },
       { name: "author", content: "World Cup OS" },
-      { property: "og:title", content: "World Cup OS — Predict the World Cup. Trust the Blockchain." },
-      { property: "og:description", content: "Real-time World Cup prediction markets powered by TxLINE with automatic on-chain settlement on Solana." },
-      { property: "og:type", content: "website" },
+      { name: "robots", content: "index, follow" },
+      { name: "theme-color", content: "#059669" },
+      { property: "og:site_name", content: "World Cup OS" },
+      { property: "og:title", content: defaultMeta.title },
+      { property: "og:description", content: defaultMeta.description },
+      { property: "og:type", content: defaultMeta.type },
+      { property: "og:url", content: canonicalUrl() },
+      { property: "og:image", content: defaultMeta.image },
+      { property: "og:image:alt", content: "World Cup OS — TxLINE oracle prediction markets on Solana" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "World Cup OS — Predict the World Cup. Trust the Blockchain." },
-      { name: "twitter:description", content: "Real-time World Cup prediction markets powered by TxLINE with automatic on-chain settlement on Solana." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3f944e2d-76c1-4674-bfe5-c16063f0d8d1/id-preview-7163e96e--e1b2104c-fed1-4c30-a6eb-d0daebeb762c.lovable.app-1783535951859.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3f944e2d-76c1-4674-bfe5-c16063f0d8d1/id-preview-7163e96e--e1b2104c-fed1-4c30-a6eb-d0daebeb762c.lovable.app-1783535951859.png" },
+      { name: "twitter:title", content: defaultMeta.title },
+      { name: "twitter:description", content: defaultMeta.description },
+      { name: "twitter:image", content: defaultMeta.image },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/favicon.svg" },
+      { rel: "canonical", href: canonicalUrl() },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(organizationJsonLd()),
+      },
     ],
   }),
   shellComponent: RootShell,

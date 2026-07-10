@@ -3,15 +3,63 @@ import { getPhantomProvider } from "./phantom-connect";
 export const PHANTOM_PENDING_CONNECT_KEY = "wmos-phantom-pending-connect";
 export const PHANTOM_CONNECT_QUERY = "phantomConnect";
 
+declare global {
+  interface Window {
+    zerion?: unknown;
+    okxwallet?: { solana?: { connect?: unknown; signMessage?: unknown } };
+    solana?: { isPhantom?: boolean; isOkxWallet?: boolean; connect?: unknown; signMessage?: unknown };
+    ethereum?: { isZerion?: boolean; isMetaMask?: boolean; isCoinbaseWallet?: boolean };
+  }
+}
+
+function hasInjectedSolanaProvider(): boolean {
+  if (typeof window === "undefined") return false;
+  if (getPhantomProvider()) return true;
+  if (window.okxwallet?.solana?.connect && window.okxwallet.solana.signMessage) return true;
+  const solana = window.solana;
+  if (solana?.connect && solana.signMessage && !solana.isPhantom && !solana.isOkxWallet) return true;
+  return false;
+}
+
 /** Phone / tablet viewport — not the same as “needs Phantom app”. */
 export function isMobileViewport(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(max-width: 767px)").matches;
 }
 
-/** Twitter / Instagram / Telegram in-app browsers block wallet injection. */
-export function isInAppBrowser(): boolean {
+/** Wallet apps with injected providers (Zerion, Phantom, OKX, etc.) — not social in-app browsers. */
+export function isWalletAppBrowser(): boolean {
   if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent.toLowerCase();
+  if (
+    /phantom/i.test(ua) ||
+    /zerion/i.test(ua) ||
+    /io\.zerion/i.test(ua) ||
+    /okx/i.test(ua) ||
+    /okex/i.test(ua) ||
+    /trust/i.test(ua) ||
+    /metamask/i.test(ua) ||
+    /coinbase/i.test(ua) ||
+    /rainbow/i.test(ua) ||
+    /solflare/i.test(ua) ||
+    /tokenpocket/i.test(ua) ||
+    /brave/i.test(ua)
+  ) {
+    return true;
+  }
+  if (typeof window !== "undefined") {
+    if (window.zerion) return true;
+    const eth = window.ethereum;
+    if (eth?.isZerion || eth?.isMetaMask || eth?.isCoinbaseWallet) return true;
+    if (hasInjectedSolanaProvider()) return true;
+  }
+  return false;
+}
+
+/** Known social / messenger in-app browsers that block wallet injection. */
+export function isSocialInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (isWalletAppBrowser()) return false;
   const ua = navigator.userAgent.toLowerCase();
   return (
     ua.includes("fban") ||
@@ -20,10 +68,19 @@ export function isInAppBrowser(): boolean {
     ua.includes("twitter") ||
     ua.includes("linkedinapp") ||
     ua.includes("telegram") ||
-    ua.includes("line/") ||
-    ua.includes("wv") ||
-    (ua.includes("iphone") && !ua.includes("safari") && !ua.includes("crios") && !ua.includes("fxios"))
+    ua.includes("line/")
   );
+}
+
+/** @deprecated Use isSocialInAppBrowser — kept for callers that import isInAppBrowser. */
+export function isInAppBrowser(): boolean {
+  return isSocialInAppBrowser();
+}
+
+/** Block connect only in social in-app browsers with no wallet injection. */
+export function shouldBlockWalletConnect(): boolean {
+  if (!isSocialInAppBrowser()) return false;
+  return !hasInjectedSolanaProvider() && !getPhantomProvider();
 }
 
 /** Phantom's in-app browser (provider injects here — never re-open browse deeplink). */
@@ -57,10 +114,9 @@ export function buildPhantomConnectReturnUrl(): string {
   return url.toString();
 }
 
+/** @deprecated Never redirect to phantom.app — use injected provider or wallet picker instead. */
 export function openPhantomMobileBrowser(): void {
-  const target = encodeURIComponent(buildPhantomConnectReturnUrl());
-  const ref = encodeURIComponent(window.location.origin);
-  window.location.assign(`https://phantom.app/ul/browse/${target}?ref=${ref}`);
+  console.warn("[wallet] openPhantomMobileBrowser is disabled — use injected wallet connect");
 }
 
 export function markPhantomConnectPending(): void {

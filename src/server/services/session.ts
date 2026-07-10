@@ -26,9 +26,10 @@ export async function verifySessionToken(token: string): Promise<string | null> 
   }
 }
 
-export function buildSessionCookie(token: string): string {
-  const secure = env.appUrl.startsWith("https") ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}${secure}`;
+export function buildSessionCookie(token: string, secure?: boolean): string {
+  const useSecure = secure ?? env.appUrl.startsWith("https");
+  const secureFlag = useSecure ? "; Secure" : "";
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}${secureFlag}`;
 }
 
 export function clearSessionCookie(): string {

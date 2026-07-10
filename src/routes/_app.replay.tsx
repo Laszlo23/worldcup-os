@@ -7,18 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Play, ArrowLeft, Radio, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import type { ReplaySession } from "@/lib/types";
-import type { Match } from "@/lib/mock/types";
 
 export const Route = createFileRoute("/_app/replay")({
   head: () => ({ meta: [{ title: "Replay Mode — World Cup OS" }] }),
   component: ReplayMode,
 });
-
-const PRESETS = [
-  { label: "🇦🇷 Argentina vs Brazil", fixtureId: "17952170", matchId: "m1" },
-  { label: "🇫🇷 France vs Germany", fixtureId: "17952171", matchId: "m2" },
-] as const;
 
 const TIMELINE_STEPS = [
   { key: "kickoff", label: "0:00 Kickoff", atMs: 0 },
@@ -31,42 +26,20 @@ const TIMELINE_STEPS = [
 
 const REPLAY_DURATION_MS = 90_000;
 
-function buildMockSession(match: Match): ReplaySession {
-  const events = [
-    { atMs: 0, payload: { minute: 0, scoreHome: 0, scoreAway: 0, gameState: "1" } },
-    ...match.events.map((e, i) => ({
-      atMs: Math.floor(((i + 1) / (match.events.length + 2)) * REPLAY_DURATION_MS * 0.6),
-      payload: {
-        minute: e.minute,
-        scoreHome: e.teamId === match.home.id ? Math.min(match.scoreHome, i + 1) : match.scoreHome,
-        scoreAway: e.teamId === match.away.id ? Math.min(match.scoreAway, i) : match.scoreAway,
-        gameState: "2",
-        event: e.type,
-      },
-    })),
-    {
-      atMs: REPLAY_DURATION_MS * 0.85,
-      payload: { minute: 90, scoreHome: match.scoreHome, scoreAway: match.scoreAway, gameState: "5" },
-    },
-  ];
-  return {
-    matchId: match.id,
-    fixtureId: Number(PRESETS.find((p) => p.matchId === match.id)?.fixtureId ?? 17952170),
-    durationMs: REPLAY_DURATION_MS,
-    events,
-  };
-}
-
 function ReplayMode() {
   const matches = useAppStore((s) => s.matches);
   const updateMatch = useAppStore((s) => s.updateMatch);
-  const [fixtureId, setFixtureId] = useState("17952170");
-  const [selectedMatchId, setSelectedMatchId] = useState("m1");
+  const presets = matches.slice(0, 6).map((m) => ({
+    label: `${m.home.flag} ${m.home.name} vs ${m.away.name}`,
+    fixtureId: m.id.replace(/^fx-/, ""),
+    matchId: m.id,
+  }));
+  const [fixtureId, setFixtureId] = useState("");
+  const [selectedMatchId, setSelectedMatchId] = useState("");
   const [session, setSession] = useState<ReplaySession | null>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [settlementQueued, setSettlementQueued] = useState(false);
-  const [usedMock, setUsedMock] = useState(false);
   const [presetUnavailable, setPresetUnavailable] = useState<string | null>(null);
 
   const activeStep = TIMELINE_STEPS.filter((s) => progress >= s.atMs).length - 1;
@@ -115,29 +88,30 @@ function ReplayMode() {
 
   async function startReplay() {
     setPresetUnavailable(null);
-    setUsedMock(false);
     try {
-      const res = await apiFetch<{ session: ReplaySession }>("/api/replay/start", {
+      const res = await apiFetch<{ session: ReplaySession & { source?: string } }>("/api/replay/start", {
         method: "POST",
-        body: JSON.stringify({ fixtureId: Number(fixtureId), matchExternalId: selectedMatchId }),
+        body: JSON.stringify({ fixtureId: Number(effectiveFixtureId) || 900001, matchExternalId: effectiveMatchId || "m1" }),
       });
-      await runReplay(res.session);
-    } catch {
-      const match = matches.find((m) => m.id === selectedMatchId);
-      if (!match) {
-        setPresetUnavailable("Fixture not available in TxLINE snapshot — try another preset or enter a valid fixture ID.");
-        return;
+      if (res.session.source === "offline_preset") {
+        toast.info("Offline replay preset", { description: "TxLINE historical unavailable — using judge demo timeline." });
       }
-      setUsedMock(true);
-      await runReplay(buildMockSession(match));
+      await runReplay(res.session);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Replay unavailable";
+      setPresetUnavailable(message);
+      toast.error("Replay failed", { description: message });
     }
   }
 
-  function selectPreset(preset: (typeof PRESETS)[number]) {
+  function selectPreset(preset: (typeof presets)[number]) {
     setFixtureId(preset.fixtureId);
     setSelectedMatchId(preset.matchId);
     setPresetUnavailable(null);
   }
+
+  const effectiveFixtureId = fixtureId || presets[0]?.fixtureId || "";
+  const effectiveMatchId = selectedMatchId || presets[0]?.matchId || "";
 
   return (
     <div className="space-y-6">
@@ -151,12 +125,12 @@ function ReplayMode() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {PRESETS.map((p) => (
+        {presets.map((p) => (
           <Button
             key={p.matchId}
-            variant={selectedMatchId === p.matchId ? "default" : "outline"}
+            variant={effectiveMatchId === p.matchId ? "default" : "outline"}
             size="sm"
-            className={selectedMatchId === p.matchId ? "bg-gradient-primary text-primary-foreground border-0" : "glass"}
+            className={effectiveMatchId === p.matchId ? "bg-gradient-primary text-primary-foreground border-0" : "glass"}
             onClick={() => selectPreset(p)}
           >
             {p.label}
@@ -171,7 +145,7 @@ function ReplayMode() {
       <Card className="glass p-6 space-y-4 max-w-2xl">
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">TxLINE fixture ID</label>
-          <Input value={fixtureId} onChange={(e) => setFixtureId(e.target.value)} className="glass font-mono" />
+          <Input value={effectiveFixtureId} onChange={(e) => setFixtureId(e.target.value)} className="glass font-mono" />
         </div>
         <Button
           className="bg-gradient-primary text-primary-foreground border-0 gap-2"
@@ -180,9 +154,6 @@ function ReplayMode() {
         >
           <Play className="h-4 w-4" /> {playing ? "Replaying…" : "Start replay"}
         </Button>
-        {usedMock && (
-          <Badge variant="outline" className="text-warning border-warning/30">Mock replay — TxLINE API unavailable</Badge>
-        )}
         {session && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Radio className="h-4 w-4 text-primary" />

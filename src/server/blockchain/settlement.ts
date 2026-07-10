@@ -1,4 +1,5 @@
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import bs58 from "bs58";
 import { getConnection, getExplorerUrl } from "./escrow";
 import { env } from "../config/env";
 import { hasDeployedProgram } from "./verify";
@@ -62,13 +63,26 @@ function hexToBytes32(hex: string): Buffer {
   return buf;
 }
 
-export function loadSettlementAuthority(): Keypair | null {
-  const secret = process.env.SETTLEMENT_AUTHORITY_SECRET;
-  if (!secret) return null;
+function keypairFromSecret(secret: string): Keypair | null {
+  const trimmed = secret.trim();
+  if (!trimmed) return null;
   try {
-    const bytes = JSON.parse(secret) as number[];
-    return Keypair.fromSecretKey(Uint8Array.from(bytes));
+    const bytes = JSON.parse(trimmed) as number[];
+    if (Array.isArray(bytes) && bytes.length === 64) {
+      return Keypair.fromSecretKey(Uint8Array.from(bytes));
+    }
+  } catch {
+    // fall through — base58 deployer secret
+  }
+  try {
+    return Keypair.fromSecretKey(bs58.decode(trimmed));
   } catch {
     return null;
   }
+}
+
+export function loadSettlementAuthority(): Keypair | null {
+  const secret = process.env.SETTLEMENT_AUTHORITY_SECRET ?? process.env.SOLANA_DEPLOYER_SECRET;
+  if (!secret) return null;
+  return keypairFromSecret(secret);
 }

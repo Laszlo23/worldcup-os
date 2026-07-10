@@ -1,18 +1,66 @@
 import { hasDatabase } from "../config/env";
 import { maybeOne, one, query, withTransaction } from "../db/postgres";
 import { txlineClient } from "./txline/client";
-import { resolveMarketOutcome, resolveWinnerOutcome } from "./txline/adapters";
+import { resolveMarketOutcome, resolveWinnerOutcome, pickLatestScoreSnapshot } from "./txline/adapters";
+import { verifyTxlineStatProof } from "./txline/validation";
 import { insertLiveEvent } from "../repositories/matches";
 import { env } from "../config/env";
 import { buildSettleMarketTx, loadSettlementAuthority } from "../blockchain/settlement";
 import { simulateSettlementTx } from "../blockchain/verify";
 import { getExplorerUrl } from "../blockchain/escrow";
 
+const TXLINE_FINISHED_GAME_STATES = new Set([5, 10, 13, 100]);
+
+/** True only when TxLINE snapshot reports the fixture has actually finished. */
+export async function isFixtureFinishedOnTxline(fixtureId: number): Promise<boolean> {
+  const snapshots = await txlineClient.getScoresSnapshot(fixtureId);
+  const latest = pickLatestScoreSnapshot(snapshots);
+  if (latest) {
+    const statusId = Number(latest.StatusId ?? latest.statusId ?? 0);
+    const action = String(latest.Action ?? "").toLowerCase();
+    if (TXLINE_FINISHED_GAME_STATES.has(statusId) || action === "game_finalised" || action === "game_finalized") {
+      return true;
+    }
+  }
+
+  const fixtures = await txlineClient.getFixturesSnapshot();
+  const row = fixtures.find((f) => {
+    const rec = f as Record<string, unknown>;
+    return Number(rec.FixtureId ?? rec.fixtureId ?? rec.fixture_id ?? 0) === fixtureId;
+  });
+  if (!row) return false;
+  const rec = row as Record<string, unknown>;
+  const gameState = Number(rec.GameState ?? rec.gameState ?? rec.game_state ?? 1);
+  return TXLINE_FINISHED_GAME_STATES.has(gameState);
+}
+
 export async function processSettlementJob(matchExternalId: string, fixtureId: number) {
   if (!hasDatabase()) return { ok: false, reason: "no_db" };
 
   const match = await maybeOne<Record<string, unknown>>("select * from matches where external_id = $1", [matchExternalId]);
   if (!match) return { ok: false, reason: "match_not_found" };
+
+  if (match.status === "settled") {
+    const existingProof = await maybeOne<{ id: string }>(
+      "select id from proofs where match_id = $1 order by created_at desc limit 1",
+      [match.id],
+    );
+    return { ok: true, reason: "already_settled", proofId: existingProof?.id };
+  }
+
+  const inProgress = await maybeOne<{ id: string }>(
+    "select id from settlements where match_id = $1 and status = 'processing' order by created_at desc limit 1",
+    [match.id],
+  );
+  if (inProgress) return { ok: false, reason: "settlement_in_progress" };
+
+  const txlineFinished = await isFixtureFinishedOnTxline(fixtureId);
+  if (!txlineFinished) {
+    if (process.env.NODE_ENV === "production" || process.env.ALLOW_SIMULATED_SETTLE !== "true") {
+      return { ok: false, reason: "fixture_not_finished_on_txline" };
+    }
+  }
+  const proofSource = txlineFinished ? "txline" : "replay_sim";
 
   const marketRows = await query<{
     market_id: string;
@@ -47,6 +95,8 @@ export async function processSettlementJob(matchExternalId: string, fixtureId: n
     return { ok: false, reason: "stat_validation_unavailable" };
   }
 
+  const proofValid = verifyTxlineStatProof(statProof);
+
   let solanaTx = "";
   let explorerUrl = "";
   let validationStatus: "verified" | "pending" = "pending";
@@ -62,12 +112,14 @@ export async function processSettlementJob(matchExternalId: string, fixtureId: n
     if (onChain) {
       solanaTx = onChain.signature;
       explorerUrl = onChain.explorerUrl;
-      validationStatus = (await simulateSettlementTx(solanaTx)) ? "verified" : "pending";
+      validationStatus = (await simulateSettlementTx(solanaTx)) && proofValid ? "verified" : "pending";
     }
-  } else if (process.env.SETTLEMENT_TX_SIGNATURE) {
+  } else if (process.env.SETTLEMENT_TX_SIGNATURE && process.env.NODE_ENV !== "production") {
     solanaTx = process.env.SETTLEMENT_TX_SIGNATURE;
     explorerUrl = getExplorerUrl(solanaTx);
-    validationStatus = (await simulateSettlementTx(solanaTx)) ? "verified" : "pending";
+    validationStatus = (await simulateSettlementTx(solanaTx)) && proofValid ? "verified" : "pending";
+  } else if (proofValid && txlineFinished) {
+    validationStatus = "verified";
   }
 
   const merkleRoot = statProof.merkleRoot;
@@ -87,10 +139,10 @@ export async function processSettlementJob(matchExternalId: string, fixtureId: n
     `
       insert into proofs (
         match_id, settlement_id, merkle_root, proof_hash, signature, validation_status,
-        solana_tx, explorer_url, final_score_home, final_score_away, validated_at, payload
+        solana_tx, explorer_url, final_score_home, final_score_away, validated_at, payload, source
       ) values (
         $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10, $11, $12
+        $7, $8, $9, $10, $11, $12, $13
       )
       returning id
     `,
@@ -107,13 +159,17 @@ export async function processSettlementJob(matchExternalId: string, fixtureId: n
       match.score_away,
       new Date().toISOString(),
       statProof.payload,
+      proofSource,
     ],
   );
 
-  await insertLiveEvent(matchExternalId, "proof_verified", "Proof verified", "TxLINE Merkle proof validated", {
-    proofId: proof?.id,
-    merkleRoot,
-  });
+  await insertLiveEvent(
+    matchExternalId,
+    validationStatus === "verified" ? "proof_verified" : "settlement_started",
+    validationStatus === "verified" ? "Proof verified" : "Settlement processing",
+    validationStatus === "verified" ? "TxLINE Merkle proof validated" : "Awaiting on-chain confirmation",
+    { proofId: proof?.id, merkleRoot },
+  );
 
   for (const market of markets ?? []) {
     const options = (market.market_options as Record<string, unknown>[]) ?? [];

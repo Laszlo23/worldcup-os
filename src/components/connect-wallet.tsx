@@ -1,4 +1,4 @@
-import { Wallet, Copy, LogOut, ChevronDown, AlertCircle, RefreshCw, Smartphone, User } from "lucide-react";
+import { Wallet, Copy, LogOut, ChevronDown, AlertCircle, RefreshCw, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { useAppStore } from "@/lib/store";
@@ -20,10 +20,10 @@ import { ensureWalletNetwork, WalletNetworkError } from "@/lib/wallet/ensure-wal
 import { getClientSolanaNetwork } from "@/lib/wallet/config";
 import {
   consumePhantomConnectIntent,
-  isInAppBrowser,
   isMobileViewport,
-  markPhantomConnectPending,
-  openPhantomMobileBrowser,
+  isSocialInAppBrowser,
+  isWalletAppBrowser,
+  shouldBlockWalletConnect,
 } from "@/lib/wallet/device";
 import { usePhantomMobileStatus } from "@/lib/wallet/use-phantom-mobile";
 import { useEffect, useRef, useState } from "react";
@@ -83,8 +83,10 @@ function ConnectWalletButtonCore({
   const [connectingMobile, setConnectingMobile] = useState(false);
   const [mobile, setMobile] = useState(false);
   const phantomStatus = usePhantomMobileStatus();
-  const needsPhantomBrowse =
-    phantomStatus === "mobile_external" || phantomStatus === "phantom_browser";
+  const inWalletBrowser = isWalletAppBrowser() || phantomStatus === "phantom_browser";
+
+  const walletsRef = useRef(wallets);
+  walletsRef.current = wallets;
 
   useEffect(() => {
     const update = () => setMobile(isMobileViewport());
@@ -240,21 +242,57 @@ function ConnectWalletButtonCore({
     }
   }
 
+  function getConnectableWallets() {
+    return walletsRef.current.filter((w) => w.readyState === WalletReadyState.Installed);
+  }
+
+  async function waitForConnectableWallet(timeoutMs = 4000): Promise<boolean> {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      if (getInjectedWallet() || getConnectableWallets().length > 0) return true;
+      await new Promise((r) => window.setTimeout(r, 150));
+    }
+    return Boolean(getInjectedWallet() || getConnectableWallets().length > 0);
+  }
+
+  function openWalletPicker() {
+    const installed = getConnectableWallets();
+    if (installed.length === 0) {
+      setShowInjectionHelp(true);
+      toast.error("No wallet detected in this browser", {
+        description: inWalletBrowser
+          ? "Approve wallet access when prompted, or enable Solana in your wallet app settings."
+          : mobile
+            ? "On mobile Chrome, use Phantom or Zerion in-app browser, or install the Phantom extension on desktop."
+            : "Install the Phantom or OKX browser extension, then reload this page.",
+      });
+      return;
+    }
+    setVisible(true);
+    toast.message("Select your wallet", {
+      description:
+        getClientSolanaNetwork() === "devnet"
+          ? "Approve connect, then sign the login message. Use devnet in wallet settings."
+          : undefined,
+    });
+  }
+
   async function handleConnectClick() {
     setShowInjectionHelp(false);
     setAuthError(null);
 
-    if (phantomStatus === "in_app_blocked" || isInAppBrowser()) {
+    if (shouldBlockWalletConnect()) {
       setShowInjectionHelp(true);
       toast.error("Open in Safari or Chrome", {
-        description: "In-app browsers cannot connect wallets. Copy the link and open it in your phone browser.",
+        description: "Social in-app browsers (X, Instagram, Telegram) block wallets. Copy the link and open it in your phone browser.",
       });
       return;
     }
 
     setConnectingMobile(true);
     try {
-      const injected = await waitForAnyInjectedWallet(phantomStatus === "mobile_external" ? 2500 : 1800);
+      const waitMs = inWalletBrowser || isMobileViewport() ? 8000 : 3500;
+      const injected = await waitForAnyInjectedWallet(waitMs);
       if (injected) {
         try {
           await connectWithInjected(injected);
@@ -271,32 +309,8 @@ function ConnectWalletButtonCore({
         return;
       }
 
-      const hasInstalledAdapter = wallets.some((w) => w.readyState === WalletReadyState.Installed);
-      if (hasInstalledAdapter) {
-        setVisible(true);
-        toast.message("Select your wallet", {
-          description:
-            getClientSolanaNetwork() === "devnet"
-              ? "OKX will prompt to switch to Solana devnet before signing."
-              : undefined,
-        });
-        return;
-      }
-
-      if (phantomStatus === "mobile_external" || phantomStatus === "checking") {
-        markPhantomConnectPending();
-        toast.message("Opening Phantom browser…", {
-          description: "Approve connect + sign in Phantom, then you'll return here signed in.",
-          duration: 6000,
-        });
-        openPhantomMobileBrowser();
-        return;
-      }
-
-      setShowInjectionHelp(true);
-      toast.error("Wallet extension not detected", {
-        description: "Install Phantom or OKX Wallet in Chrome/Firefox, then reload.",
-      });
+      await waitForConnectableWallet(inWalletBrowser ? 5000 : 3000);
+      openWalletPicker();
     } finally {
       setConnectingMobile(false);
     }
@@ -334,17 +348,11 @@ function ConnectWalletButtonCore({
   const connectLabel =
     phantomStatus === "checking" || connectingMobile
       ? "Connecting…"
-      : phantomStatus === "injected" || phantomStatus === "phantom_browser"
-        ? mobile
+      : connecting
+        ? "Connecting…"
+        : mobile
           ? "Connect"
-          : "Connect Wallet"
-        : needsPhantomBrowse
-          ? "Connect"
-          : connecting
-            ? "Connecting…"
-            : mobile
-              ? "Connect"
-              : "Connect Wallet";
+          : "Connect Wallet";
 
   if (!wallet.connected) {
     return (
@@ -356,35 +364,34 @@ function ConnectWalletButtonCore({
           disabled={connecting || connectingMobile || phantomStatus === "checking"}
           className="bg-gradient-primary text-primary-foreground border-0 hover:opacity-90 glow-primary font-medium w-full sm:w-auto min-h-[44px]"
         >
-          {needsPhantomBrowse ? <Smartphone className="h-4 w-4" /> : <Wallet className="h-4 w-4" />}
+          <Wallet className="h-4 w-4" />
           {connectLabel}
         </Button>
         {showInjectionHelp && (
           <div className="glass rounded-lg p-3 text-xs w-full sm:max-w-xs text-left space-y-2 border border-warning/30">
             <div className="flex items-center gap-2 text-warning font-medium">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-              {phantomStatus === "in_app_blocked" || isInAppBrowser()
+              {shouldBlockWalletConnect() || isSocialInAppBrowser()
                 ? "Use your phone browser"
-                : needsPhantomBrowse
-                  ? "Connect via Phantom browser"
-                  : "Wallet extension required"}
+                : inWalletBrowser
+                  ? "Use your in-app wallet"
+                  : "Wallet not detected"}
             </div>
             <ul className="text-muted-foreground space-y-1 list-disc pl-4">
-              {phantomStatus === "in_app_blocked" || isInAppBrowser() ? (
+              {shouldBlockWalletConnect() || isSocialInAppBrowser() ? (
                 <>
                   <li>Copy this URL and open it in Safari or Chrome</li>
                   <li>In-app browsers (X, Instagram, Telegram) block wallets</li>
                 </>
-              ) : needsPhantomBrowse ? (
+              ) : inWalletBrowser ? (
                 <>
-                  <li>Tap Connect — opens the site inside Phantom&apos;s browser</li>
-                  <li>Approve connect, then sign the login message</li>
-                  <li>Use Safari/Chrome on your phone (not the X in-app browser)</li>
-                  <li>Phantom must be on devnet for predictions</li>
+                  <li>Tap Connect and approve in your wallet app</li>
+                  <li>We use the injected wallet only — never phantom.app</li>
+                  <li>Set Solana to devnet for predictions</li>
                 </>
               ) : (
                 <>
-                  <li>Use Chrome or Firefox with Phantom or OKX Wallet</li>
+                  <li>Use Chrome or Firefox with Phantom, OKX, or Zerion</li>
                   <li>OKX auto-prompts to switch to Solana devnet on connect</li>
                   <li>Phantom: set network to Devnet in wallet settings</li>
                   <li>Reload after installing a wallet extension</li>

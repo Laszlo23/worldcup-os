@@ -4,6 +4,7 @@ import { Check, ExternalLink } from "lucide-react";
 import type { CommunityTask } from "@/lib/mock/tasks";
 import { useTasksStore } from "@/lib/store/tasks";
 import { Link } from "@tanstack/react-router";
+import { SoccerImage } from "@/components/soccer-image";
 
 export function TaskCard({ task }: { task: CommunityTask }) {
   const { isCompleted, completeTask } = useTasksStore();
@@ -19,7 +20,16 @@ export function TaskCard({ task }: { task: CommunityTask }) {
   const isInternal = task.ctaUrl.startsWith("/");
 
   return (
-    <div className="glass rounded-xl p-5 flex flex-col h-full border border-border/50 hover:border-gold/30 transition-colors">
+    <div className="glass rounded-xl overflow-hidden flex flex-col h-full border border-border/50 hover:border-gold/30 transition-colors">
+      {task.imageSrc && (
+        <SoccerImage
+          src={task.imageSrc}
+          alt={task.imageAlt ?? task.title}
+          overlay="soft"
+          className="aspect-[16/9] shrink-0"
+        />
+      )}
+      <div className="p-5 flex flex-col flex-1">
       <div className="flex items-center gap-2 mb-3">
         <Badge className="bg-success/20 text-success border-success/30 text-[10px] uppercase">{task.category}</Badge>
         <Badge variant="outline" className="text-gold border-gold/40 font-mono text-xs">+{task.points} PTS</Badge>
@@ -42,6 +52,7 @@ export function TaskCard({ task }: { task: CommunityTask }) {
           {done ? <><Check className="h-3.5 w-3.5" /> Completed</> : <>{task.ctaLabel} <ExternalLink className="h-3 w-3" /></>}
         </Button>
       )}
+      </div>
     </div>
   );
 }

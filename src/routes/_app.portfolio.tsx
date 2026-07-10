@@ -1,25 +1,33 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAppStore } from "@/lib/store";
-import { usePortfolio } from "@/lib/queries/hooks";
+import { usePortfolio, useProofs } from "@/lib/queries/hooks";
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queries/hooks";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/stat-card";
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { Wallet, TrendingUp, Clock, CheckCircle2 } from "lucide-react";
+import { Wallet, TrendingUp, Clock, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { ConnectWalletButton } from "@/components/connect-wallet";
+import { DataSourceBadge } from "@/components/data-source-badge";
+import { EscrowProofCard } from "@/components/proofs/escrow-proof-card";
+import { pageTitle } from "@/lib/seo";
+import { ApiError } from "@/lib/api/client";
 
 export const Route = createFileRoute("/_app/portfolio")({
-  head: () => ({ meta: [{ title: "Portfolio — World Cup OS" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Portfolio") }] }),
   component: Portfolio,
 });
 
 function Portfolio() {
   const wallet = useAppStore((s) => s.wallet);
   const claim = useAppStore((s) => s.claim);
+  const claimingId = useAppStore((s) => s.claimingId);
   const syncPortfolio = useAppStore((s) => s.syncPortfolio);
-  const { data: portfolio } = usePortfolio();
+  const { data: portfolio, isError: portfolioError, error: portfolioFetchError } = usePortfolio();
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (portfolio) {
@@ -27,21 +35,23 @@ function Portfolio() {
     }
   }, [portfolio, syncPortfolio]);
 
+  const handleClaim = async (id: string) => {
+    const result = await claim(id);
+    if (result) {
+      void qc.invalidateQueries({ queryKey: queryKeys.portfolio });
+    }
+  };
+
   if (!wallet.connected) {
-    return (
-      <div className="glass rounded-2xl p-16 text-center max-w-md mx-auto">
-        <Wallet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-        <h2 className="text-xl font-display font-semibold mb-2">Connect your wallet</h2>
-        <p className="text-sm text-muted-foreground mb-6">Sign in with your Solana wallet to view your portfolio.</p>
-        <ConnectWalletButton />
-      </div>
-    );
+    return <PublicPortfolio />;
   }
 
   const open = portfolio?.open ?? [];
   const won = portfolio?.won ?? [];
   const settled = portfolio?.settled ?? [];
   const lost = portfolio?.lost ?? [];
+  const totalPredictions = open.length + won.length + settled.length + lost.length;
+  const sessionExpired = portfolioError && portfolioFetchError instanceof ApiError && portfolioFetchError.status === 401;
   const inEscrow = portfolio?.inEscrow ?? 0;
   const pendingRewards = portfolio?.pendingRewards ?? 0;
   const totalEarnings = portfolio?.totalEarnings ?? 0;
@@ -50,19 +60,53 @@ function Portfolio() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-display font-bold">Portfolio</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-3xl font-display font-bold">Portfolio</h1>
+          <DataSourceBadge source="on-chain" />
+          <DataSourceBadge source="indexed" />
+        </div>
         <p className="text-muted-foreground mt-1 font-mono text-sm">{wallet.address}</p>
       </div>
 
+      {sessionExpired && (
+        <div className="glass rounded-xl p-4 border border-warning/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Session expired — sign in again to load your predictions.
+          </p>
+          <ConnectWalletButton size="sm" />
+        </div>
+      )}
+
+      {!sessionExpired && totalPredictions === 0 && wallet.connected && (
+        <div className="glass rounded-xl p-4 border border-border/60 text-sm text-muted-foreground">
+          No predictions for this wallet yet. Your on-chain escrow proofs appear under{" "}
+          <a href="/proofs" className="text-primary hover:underline">Proof Explorer</a>.
+          Predictions are tied to the wallet you used when placing each bet.
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={Wallet} label="USDC balance" value={(portfolio?.balance ?? wallet.balance).toFixed(2)} />
-        <StatCard icon={Clock} label="In escrow" value={inEscrow.toFixed(2)} accent="warning" />
+        <div className="relative">
+          <StatCard icon={Wallet} label="USDC balance" value={(portfolio?.balance ?? wallet.balance).toFixed(2)} />
+          <div className="absolute top-2 right-2">
+            <DataSourceBadge source="on-chain" className="scale-90 origin-top-right" />
+          </div>
+        </div>
+        <StatCard icon={Clock} label="In escrow (indexed)" value={inEscrow.toFixed(2)} accent="warning" />
         <StatCard icon={CheckCircle2} label="Pending rewards" value={pendingRewards.toFixed(2)} accent="accent" />
         <StatCard icon={TrendingUp} label="Total earnings" value={(totalEarnings >= 0 ? "+" : "") + totalEarnings.toFixed(2)} />
       </div>
 
       <Card className="glass p-6">
-        <h3 className="font-display font-semibold mb-4">Portfolio performance</h3>
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <h3 className="font-display font-semibold">Portfolio performance</h3>
+          <DataSourceBadge source="indexed" />
+        </div>
+        {perf.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-16">
+            Performance chart appears after your first settled or lost prediction.
+          </p>
+        ) : (
         <div className="h-64">
           <ResponsiveContainer>
             <AreaChart data={perf}>
@@ -80,6 +124,7 @@ function Portfolio() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        )}
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -92,8 +137,19 @@ function Portfolio() {
           {won.length === 0 && <Empty text="No unclaimed rewards." />}
           {won.map((p) => (
             <PredictionRow key={p.id} p={p} actions={
-              <Button size="sm" className="bg-gradient-primary text-primary-foreground border-0" onClick={() => void claim(p.id)}>
-                Claim {p.payout?.toFixed(2)}
+              <Button
+                size="sm"
+                className="bg-gradient-primary text-primary-foreground border-0 min-w-[7.5rem]"
+                disabled={claimingId === p.id}
+                onClick={() => void handleClaim(p.id)}
+              >
+                {claimingId === p.id ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Claiming…
+                  </>
+                ) : (
+                  <>Claim {p.payout?.toFixed(2)}</>
+                )}
               </Button>
             } />
           ))}
@@ -109,6 +165,59 @@ function Portfolio() {
           {lost.map((p) => <PredictionRow key={p.id} p={p} />)}
         </Section>
       </div>
+    </div>
+  );
+}
+
+function PublicPortfolio() {
+  const matches = useAppStore((s) => s.matches);
+  const { data, isPending } = useProofs();
+  const escrowProofs = (data?.escrowProofs ?? []).slice(0, 5);
+  const getMatch = (id: string) => matches.find((m) => m.id === id);
+
+  return (
+    <div className="space-y-8">
+      <div className="glass rounded-2xl p-8 md:p-10 max-w-2xl">
+        <Wallet className="h-10 w-10 mb-4 text-muted-foreground" />
+        <h1 className="text-2xl font-display font-bold">Portfolio</h1>
+        <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+          Connect your wallet to see balances, open predictions, and claim rewards. On-chain escrow proofs are public — browse them below or in{" "}
+          <Link to="/proofs" className="text-primary hover:underline">Proof Explorer</Link>.
+        </p>
+        <ConnectWalletButton className="mt-6" />
+      </div>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-warning" />
+          <h2 className="text-xl font-display font-semibold">Recent on-chain escrow locks</h2>
+          <DataSourceBadge source="on-chain" />
+        </div>
+        <p className="text-sm text-muted-foreground -mt-2">
+          Confirmed Solana transactions from all users — visible without signing in.
+        </p>
+        {isPending ? (
+          <div className="glass rounded-xl p-10 flex justify-center text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {escrowProofs.map((p) => (
+              <EscrowProofCard key={p.id} proof={p} match={getMatch(p.matchId)} />
+            ))}
+            {escrowProofs.length === 0 && (
+              <p className="text-muted-foreground text-center py-10 glass rounded-xl">
+                No indexed escrow transactions yet.
+              </p>
+            )}
+          </div>
+        )}
+        <div className="flex justify-end">
+          <Button asChild variant="outline" size="sm" className="glass">
+            <Link to="/proofs">View all proofs</Link>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

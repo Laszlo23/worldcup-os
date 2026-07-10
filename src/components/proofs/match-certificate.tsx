@@ -5,6 +5,7 @@ import { Copy, ExternalLink, ShieldCheck } from "lucide-react";
 import type { TxLineProof } from "@/lib/mock/types";
 import type { Match } from "@/lib/mock/types";
 import { toast } from "sonner";
+import { getClientSolanaNetwork } from "@/lib/wallet/config";
 
 interface MatchCertificateProps {
   proof: TxLineProof;
@@ -19,13 +20,16 @@ export function MatchCertificate({ proof, match }: MatchCertificateProps) {
     match && proof.validatedAt
       ? Math.max(0, Math.round((proof.validatedAt - (match.kickoff + 90 * 60_000)) / 1000))
       : null;
-  const settlementStatus = proof.solanaTx ? "CONFIRMED" : "PENDING";
+  const isVerified = proof.status === "verified";
+  const settlementStatus = isVerified && proof.solanaTx ? "ANCHORED" : proof.solanaTx ? "TX SUBMITTED" : "PENDING";
+  const oracleStatus = isVerified ? "VERIFIED" : "PENDING";
+  const cluster = getClientSolanaNetwork();
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-6 md:p-8 glow-primary"
+      className="certificate-panel relative overflow-hidden p-6 md:p-8"
     >
       <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
 
@@ -46,7 +50,9 @@ export function MatchCertificate({ proof, match }: MatchCertificateProps) {
             </motion.div>
           </motion.div>
           <div>
-            <Badge className="bg-primary/20 text-primary border-primary/30 mb-2">VERIFIED MATCH CERTIFICATE</Badge>
+            <Badge className="bg-primary/15 text-primary border-primary/40 mb-2 font-mono text-[10px] uppercase tracking-[0.2em]">
+              {isVerified ? "Verified Match Certificate" : "Pending Match Certificate"}
+            </Badge>
             <h2 className="text-xl md:text-2xl font-display font-bold">{title}</h2>
             <p className="text-3xl font-mono font-bold mt-1 gradient-text">
               {proof.finalScore[0]} – {proof.finalScore[1]}
@@ -60,8 +66,8 @@ export function MatchCertificate({ proof, match }: MatchCertificateProps) {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4 relative">
-        <CertField label="Oracle signature" value="VALID" highlight />
-        <CertField label="Solana settlement" value={settlementStatus} highlight={settlementStatus === "CONFIRMED"} />
+        <CertField label="Oracle validation" value={oracleStatus} highlight={oracleStatus === "VERIFIED"} />
+        <CertField label="Solana settlement" value={settlementStatus} highlight={settlementStatus === "ANCHORED"} />
         <CertField label="Merkle root" value={proof.merkleRoot} truncate copy />
         <CertField label="Proof hash" value={proof.proofHash} truncate copy />
         <CertField label="TxLINE signature" value={proof.signature} truncate copy />
@@ -79,7 +85,7 @@ export function MatchCertificate({ proof, match }: MatchCertificateProps) {
           size="sm"
           variant="outline"
           className="glass gap-1"
-          onClick={() => window.open(`https://explorer.solana.com/tx/${proof.solanaTx}?cluster=devnet`, "_blank")}
+          onClick={() => window.open(`https://explorer.solana.com/tx/${proof.solanaTx}?cluster=${cluster}`, "_blank")}
           disabled={!proof.solanaTx}
         >
           Verify on Solana Explorer <ExternalLink className="h-3 w-3" />

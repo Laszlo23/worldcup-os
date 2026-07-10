@@ -37,14 +37,12 @@ export function getTxoracleNetwork(): SolanaNetwork {
 }
 
 function readEnv(name: string): string | undefined {
-  if (typeof import.meta !== "undefined") {
-    const value = (import.meta.env as Record<string, string | undefined>)[name];
-    if (value) return value;
-  }
-  if (typeof process !== "undefined") {
-    const value = process.env[name];
-    if (value) return value;
-  }
+  const metaEnv =
+    typeof import.meta !== "undefined"
+      ? (import.meta as { env?: Record<string, string | undefined> }).env
+      : undefined;
+  if (metaEnv?.[name]) return metaEnv[name];
+  if (typeof process !== "undefined" && process.env[name]) return process.env[name];
   return undefined;
 }
 

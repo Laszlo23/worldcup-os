@@ -1,9 +1,13 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ConnectWalletButton } from "@/components/connect-wallet";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { LiveFeedPanel, LiveFeedMobileTrigger } from "@/components/live-feed-panel";
 import { Separator } from "@/components/ui/separator";
-import { Fragment } from "react";
+import { SoccerBackdrop } from "@/components/soccer-image";
+import { useAppStore } from "@/lib/store";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -12,7 +16,8 @@ export const Route = createFileRoute("/_app")({
 const titles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/matches": "Matches",
-  "/markets": "Prediction Markets",
+  "/markets": "Predictions",
+  "/profile": "Profile",
   "/leaderboard": "Leaderboard",
   "/analytics": "Analytics",
   "/proofs": "Proof Explorer",
@@ -29,30 +34,45 @@ function AppLayout() {
     Object.entries(titles).find(([k]) => pathname === k || (k !== "/" && pathname.startsWith(k)))?.[1] ??
     "Dashboard";
 
+  const [mobileFeedOpen, setMobileFeedOpen] = useState(false);
+  const feedUnreadCount = useAppStore((s) => s.feedUnreadCount);
+  const clearFeedUnread = useAppStore((s) => s.clearFeedUnread);
+
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <SoccerBackdrop variant="stadium" />
+      <div className="relative z-10 min-h-screen flex w-full">
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col min-w-0">
-          <header className="sticky top-0 z-30 h-14 flex items-center gap-3 px-4 border-b border-border backdrop-blur-xl bg-background/60">
-            <SidebarTrigger />
-            <Separator orientation="vertical" className="h-5" />
-            <div className="flex items-center gap-2 text-sm">
-              <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
-              <span className="text-muted-foreground">/</span>
-              <span className="font-medium">{title}</span>
+        <SidebarInset className="flex-1 flex flex-col min-w-0 min-h-0">
+          <header className="sticky top-0 z-30 min-h-14 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 pt-[env(safe-area-inset-top)] border-b border-border backdrop-blur-xl bg-background/60">
+            <SidebarTrigger className="shrink-0" />
+            <Separator orientation="vertical" className="h-5 hidden sm:block" />
+            <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+              <Link to="/" className="text-muted-foreground hover:text-foreground hidden sm:inline shrink-0">
+                Home
+              </Link>
+              <span className="text-muted-foreground hidden sm:inline">/</span>
+              <span className="font-medium truncate">{title}</span>
             </div>
-            <div className="ml-auto">
+            <div className="shrink-0 max-w-[45%] sm:max-w-none">
               <ConnectWalletButton size="sm" />
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-8">
-            <Fragment>
-              <Outlet />
-            </Fragment>
+          <main className="flex-1 p-3 sm:p-4 md:p-8 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-8 min-h-0 overflow-auto">
+            <Outlet />
           </main>
+          <MobileBottomNav />
         </SidebarInset>
+        <LiveFeedPanel mode="rail" />
       </div>
+      <LiveFeedMobileTrigger
+        onClick={() => {
+          setMobileFeedOpen(true);
+          clearFeedUnread();
+        }}
+        newCount={feedUnreadCount}
+      />
+      <LiveFeedPanel mode="sheet" open={mobileFeedOpen} onOpenChange={setMobileFeedOpen} />
     </SidebarProvider>
   );
 }

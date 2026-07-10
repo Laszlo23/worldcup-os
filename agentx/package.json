@@ -1,0 +1,26 @@
+{
+  "name": "txline-ai-trader",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w web\" \"cd services/ai-engine && uvicorn app.main:app --reload --host 0.0.0.0 --port 8041\"",
+    "dev:web": "npm run dev -w web",
+    "dev:api": "cd services/ai-engine && uvicorn app.main:app --reload --host 0.0.0.0 --port 8041",
+    "build": "npm run build -w web",
+    "start:web": "npm run start -w web",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "node scripts/seed-demo.mjs",
+    "demo:run": "node scripts/demo-orchestrator.mjs",
+    "deploy:prod": "bash scripts/deploy-prod.sh",
+    "test:hackathon-readiness": "node scripts/hackathon-readiness.mjs"
+  },
+  "devDependencies": {
+  "concurrently": "^9.1.2",
+    "prisma": "^6.9.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.9.0"
+  }
+}

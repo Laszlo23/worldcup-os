@@ -1,12 +1,14 @@
 import { defineHandler } from "nitro";
 import { placePredictionSchema } from "@/lib/validators/api";
-import { hasDatabase, useMockFallback } from "@/server/config/env";
+import { hasDatabase } from "@/server/config/env";
 import { maybeOne, one, query, withTransaction } from "@/server/db/postgres";
 import { verifyPlacePredictionTx } from "@/server/blockchain/verify";
-import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession } from "@/server/middleware/http";
+import { insertLiveEvent } from "@/server/repositories/matches";
+import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireMutationOrigin } from "@/server/middleware/http";
 
 export default defineHandler(async (event) => {
   if (!(await rateLimit(event, "predictions", 60))) return errorResponse("Rate limit exceeded", 429);
+  if (!requireMutationOrigin(event)) return errorResponse("Forbidden", 403);
 
   const wallet = await requireSession(event);
   if (wallet instanceof Response) return wallet;
@@ -14,22 +16,6 @@ export default defineHandler(async (event) => {
   const body = await readJsonBody<unknown>(event);
   const parsed = placePredictionSchema.safeParse(body);
   if (!parsed.success) return errorResponse(parsed.error.message, 400);
-
-  if (useMockFallback()) {
-    return jsonResponse({
-      prediction: {
-        id: `pred_${crypto.randomUUID().slice(0, 8)}`,
-        marketId: parsed.data.marketExternalId,
-        matchId: "",
-        outcomeId: parsed.data.optionExternalId,
-        outcomeLabel: "",
-        amount: parsed.data.amount,
-        price: 1,
-        status: "open",
-        placedAt: Date.now(),
-      },
-    });
-  }
 
   if (!hasDatabase()) return errorResponse("Database unavailable", 503);
 
@@ -48,6 +34,12 @@ export default defineHandler(async (event) => {
     return errorResponse(`Escrow verification failed: ${verification.reason}`, 400);
   }
 
+  const reusedTx = await maybeOne<{ id: string }>(
+    "select id from predictions where tx_signature = $1 limit 1",
+    [parsed.data.txSignature],
+  );
+  if (reusedTx) return errorResponse("Transaction signature already used", 409);
+
   const user = await maybeOne<{ id: string }>("select id from users where wallet_pubkey = $1", [wallet]);
   if (!user) return errorResponse("User not found", 404);
 
@@ -57,9 +49,11 @@ export default defineHandler(async (event) => {
     match_id: string;
     closed: boolean;
     match_external_id: string;
+    match_status: string;
+    kickoff_at: string | null;
   }>(
     `
-      select m.id, m.external_id, m.match_id, m.closed, mt.external_id as match_external_id
+      select m.id, m.external_id, m.match_id, m.closed, mt.external_id as match_external_id, mt.status as match_status, mt.kickoff_at
       from markets m
       join matches mt on mt.id = m.match_id
       where m.external_id = $1
@@ -67,6 +61,11 @@ export default defineHandler(async (event) => {
     [parsed.data.marketExternalId],
   );
   if (!market || market.closed) return errorResponse("Market closed", 400);
+  if (market.match_status !== "scheduled") return errorResponse("Predictions only open for upcoming fixtures", 400);
+  if (market.kickoff_at) {
+    const closesAt = new Date(market.kickoff_at).getTime() - 5 * 60_000;
+    if (Date.now() >= closesAt) return errorResponse("Predictions closed — kickoff window passed", 400);
+  }
 
   const option = await maybeOne<{ id: string; label: string; price: string | number }>(
     "select id, label, price from market_options where market_id = $1 and external_id = $2",
@@ -76,8 +75,9 @@ export default defineHandler(async (event) => {
 
   const externalId = `pred_${crypto.randomUUID().slice(0, 8)}`;
   const escrowPda = verification.escrowPda ?? parsed.data.escrowPda ?? null;
+  const lockedAmount = verification.amount ?? parsed.data.amount;
 
-  const prediction = await withTransaction(async (client) => {
+  await withTransaction(async (client) => {
     const created = await one<{ id: string }>(
       `
         insert into predictions (
@@ -96,7 +96,7 @@ export default defineHandler(async (event) => {
         market.match_id,
         option.id,
         option.label,
-        parsed.data.amount,
+        lockedAmount,
         option.price,
         escrowPda,
         parsed.data.txSignature,
@@ -105,7 +105,7 @@ export default defineHandler(async (event) => {
       client,
     );
 
-    await query("insert into escrows (prediction_id, amount, status) values ($1, $2, 'locked')", [created.id, parsed.data.amount], client);
+    await query("insert into escrows (prediction_id, amount, status) values ($1, $2, 'locked')", [created.id, lockedAmount], client);
     await query(
       "insert into transactions (user_id, type, status, signature, metadata) values ($1, $2, $3, $4, $5)",
       [
@@ -113,13 +113,21 @@ export default defineHandler(async (event) => {
         "place_prediction",
         "confirmed",
         parsed.data.txSignature,
-        { predictionExternalId: externalId, amount: parsed.data.amount, escrowPda },
+        { predictionExternalId: externalId, amount: lockedAmount, escrowPda },
       ],
       client,
     );
 
     return created;
   });
+
+  await insertLiveEvent(
+    market.match_external_id,
+    "odds_update",
+    "PREDICTION · Escrow locked",
+    `${lockedAmount} USDC on ${option.label} @ ${Number(option.price).toFixed(2)}x · awaiting kickoff`,
+    { predictionId: externalId, matchId: market.match_external_id, amount: lockedAmount },
+  );
 
   return jsonResponse({
     prediction: {
@@ -128,7 +136,7 @@ export default defineHandler(async (event) => {
       matchId: market.match_external_id,
       outcomeId: parsed.data.optionExternalId,
       outcomeLabel: option.label,
-      amount: parsed.data.amount,
+      amount: lockedAmount,
       price: Number(option.price),
       placedAt: Date.now(),
       status: "open",

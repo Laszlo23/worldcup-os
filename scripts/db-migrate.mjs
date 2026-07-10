@@ -1,4 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 import pg from "pg";
 
@@ -9,7 +11,10 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const schema = await readFile(new URL("../database/schema.sql", import.meta.url), "utf8");
+const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+const schema = await readFile(path.join(repoRoot, "database/schema.sql"), "utf8");
+const migrationsDir = path.join(repoRoot, "supabase/migrations");
+
 const pool = new pg.Pool({
   connectionString: databaseUrl,
   ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
@@ -18,6 +23,22 @@ const pool = new pg.Pool({
 try {
   await pool.query(schema);
   console.log("Postgres schema applied successfully.");
+
+  let migrationFiles = [];
+  try {
+    migrationFiles = (await readdir(migrationsDir))
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+  } catch {
+    // no supabase migrations dir
+  }
+
+  for (const file of migrationFiles) {
+    if (!file.includes("engagement")) continue;
+    const sql = await readFile(path.join(migrationsDir, file), "utf8");
+    await pool.query(sql);
+    console.log(`Applied migration: ${file}`);
+  }
 } finally {
   await pool.end();
 }

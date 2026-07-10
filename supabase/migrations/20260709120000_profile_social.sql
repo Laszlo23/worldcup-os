@@ -1,0 +1,8 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS x_handle TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farcaster_fid BIGINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farcaster_username TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farcaster_pfp_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS social_verified_at TIMESTAMPTZ;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_farcaster_fid ON users(farcaster_fid) WHERE farcaster_fid IS NOT NULL;

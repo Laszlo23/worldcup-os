@@ -17,7 +17,6 @@ export const placePredictionSchema = z.object({
 
 export const claimPredictionSchema = z.object({
   predictionExternalId: z.string().min(1),
-  txSignature: z.string().optional(),
 });
 
 export const leaderboardQuerySchema = z.object({
@@ -31,4 +30,31 @@ export const replayStartSchema = z.object({
 
 export const workerAuthSchema = z.object({
   secret: z.string().min(1),
+});
+
+const xHandleSchema = z
+  .string()
+  .max(15)
+  .regex(/^[A-Za-z0-9_]{1,15}$/, "Invalid X handle")
+  .transform((v) => v.replace(/^@/, ""));
+
+export const updateProfileSchema = z.object({
+  nickname: z.string().min(1).max(64).optional(),
+  bio: z.string().max(280).nullable().optional(),
+  xHandle: xHandleSchema.nullable().optional(),
+});
+
+export const farcasterLinkSchema = z.object({
+  message: z.string().min(1),
+  signature: z.string().min(1),
+  nonce: z.string().min(1),
+});
+
+export const postChatMessageSchema = z.object({
+  body: z
+    .string()
+    .trim()
+    .min(1, "Message cannot be empty")
+    .max(500, "Message too long (max 500 characters)")
+    .refine((v) => !/[<>]/.test(v), "Invalid characters in message"),
 });

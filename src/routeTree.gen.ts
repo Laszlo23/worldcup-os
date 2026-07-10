@@ -9,12 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReplayRouteImport } from './routes/_app.replay'
 import { Route as AppProofsRouteImport } from './routes/_app.proofs'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppPortfolioRouteImport } from './routes/_app.portfolio'
 import { Route as AppOracleRouteImport } from './routes/_app.oracle'
 import { Route as AppMatchesRouteImport } from './routes/_app.matches'
@@ -23,8 +25,14 @@ import { Route as AppLeaderboardRouteImport } from './routes/_app.leaderboard'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAdminRouteImport } from './routes/_app.admin'
+import { Route as AppMatchesIndexRouteImport } from './routes/_app.matches.index'
 import { Route as AppMatchesIdRouteImport } from './routes/_app.matches.$id'
 
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -52,6 +60,11 @@ const AppReplayRoute = AppReplayRouteImport.update({
 const AppProofsRoute = AppProofsRouteImport.update({
   id: '/proofs',
   path: '/proofs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPortfolioRoute = AppPortfolioRouteImport.update({
@@ -94,6 +107,11 @@ const AppAdminRoute = AppAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMatchesIndexRoute = AppMatchesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppMatchesRoute,
+} as any)
 const AppMatchesIdRoute = AppMatchesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -102,6 +120,7 @@ const AppMatchesIdRoute = AppMatchesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/faq': typeof FaqRoute
   '/admin': typeof AppAdminRoute
   '/analytics': typeof AppAnalyticsRoute
   '/dashboard': typeof AppDashboardRoute
@@ -110,32 +129,37 @@ export interface FileRoutesByFullPath {
   '/matches': typeof AppMatchesRouteWithChildren
   '/oracle': typeof AppOracleRoute
   '/portfolio': typeof AppPortfolioRoute
+  '/profile': typeof AppProfileRoute
   '/proofs': typeof AppProofsRoute
   '/replay': typeof AppReplayRoute
   '/settings': typeof AppSettingsRoute
   '/tasks': typeof AppTasksRoute
   '/matches/$id': typeof AppMatchesIdRoute
+  '/matches/': typeof AppMatchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/faq': typeof FaqRoute
   '/admin': typeof AppAdminRoute
   '/analytics': typeof AppAnalyticsRoute
   '/dashboard': typeof AppDashboardRoute
   '/leaderboard': typeof AppLeaderboardRoute
   '/markets': typeof AppMarketsRoute
-  '/matches': typeof AppMatchesRouteWithChildren
   '/oracle': typeof AppOracleRoute
   '/portfolio': typeof AppPortfolioRoute
+  '/profile': typeof AppProfileRoute
   '/proofs': typeof AppProofsRoute
   '/replay': typeof AppReplayRoute
   '/settings': typeof AppSettingsRoute
   '/tasks': typeof AppTasksRoute
   '/matches/$id': typeof AppMatchesIdRoute
+  '/matches': typeof AppMatchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/faq': typeof FaqRoute
   '/_app/admin': typeof AppAdminRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -144,16 +168,19 @@ export interface FileRoutesById {
   '/_app/matches': typeof AppMatchesRouteWithChildren
   '/_app/oracle': typeof AppOracleRoute
   '/_app/portfolio': typeof AppPortfolioRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/proofs': typeof AppProofsRoute
   '/_app/replay': typeof AppReplayRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/matches/$id': typeof AppMatchesIdRoute
+  '/_app/matches/': typeof AppMatchesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/faq'
     | '/admin'
     | '/analytics'
     | '/dashboard'
@@ -162,31 +189,36 @@ export interface FileRouteTypes {
     | '/matches'
     | '/oracle'
     | '/portfolio'
+    | '/profile'
     | '/proofs'
     | '/replay'
     | '/settings'
     | '/tasks'
     | '/matches/$id'
+    | '/matches/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/faq'
     | '/admin'
     | '/analytics'
     | '/dashboard'
     | '/leaderboard'
     | '/markets'
-    | '/matches'
     | '/oracle'
     | '/portfolio'
+    | '/profile'
     | '/proofs'
     | '/replay'
     | '/settings'
     | '/tasks'
     | '/matches/$id'
+    | '/matches'
   id:
     | '__root__'
     | '/'
     | '/_app'
+    | '/faq'
     | '/_app/admin'
     | '/_app/analytics'
     | '/_app/dashboard'
@@ -195,20 +227,30 @@ export interface FileRouteTypes {
     | '/_app/matches'
     | '/_app/oracle'
     | '/_app/portfolio'
+    | '/_app/profile'
     | '/_app/proofs'
     | '/_app/replay'
     | '/_app/settings'
     | '/_app/tasks'
     | '/_app/matches/$id'
+    | '/_app/matches/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  FaqRoute: typeof FaqRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -249,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/proofs'
       fullPath: '/proofs'
       preLoaderRoute: typeof AppProofsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/portfolio': {
@@ -307,6 +356,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/matches/': {
+      id: '/_app/matches/'
+      path: '/'
+      fullPath: '/matches/'
+      preLoaderRoute: typeof AppMatchesIndexRouteImport
+      parentRoute: typeof AppMatchesRoute
+    }
     '/_app/matches/$id': {
       id: '/_app/matches/$id'
       path: '/$id'
@@ -319,10 +375,12 @@ declare module '@tanstack/react-router' {
 
 interface AppMatchesRouteChildren {
   AppMatchesIdRoute: typeof AppMatchesIdRoute
+  AppMatchesIndexRoute: typeof AppMatchesIndexRoute
 }
 
 const AppMatchesRouteChildren: AppMatchesRouteChildren = {
   AppMatchesIdRoute: AppMatchesIdRoute,
+  AppMatchesIndexRoute: AppMatchesIndexRoute,
 }
 
 const AppMatchesRouteWithChildren = AppMatchesRoute._addFileChildren(
@@ -338,6 +396,7 @@ interface AppRouteChildren {
   AppMatchesRoute: typeof AppMatchesRouteWithChildren
   AppOracleRoute: typeof AppOracleRoute
   AppPortfolioRoute: typeof AppPortfolioRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppProofsRoute: typeof AppProofsRoute
   AppReplayRoute: typeof AppReplayRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -353,6 +412,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMatchesRoute: AppMatchesRouteWithChildren,
   AppOracleRoute: AppOracleRoute,
   AppPortfolioRoute: AppPortfolioRoute,
+  AppProfileRoute: AppProfileRoute,
   AppProofsRoute: AppProofsRoute,
   AppReplayRoute: AppReplayRoute,
   AppSettingsRoute: AppSettingsRoute,
@@ -364,6 +424,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  FaqRoute: FaqRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

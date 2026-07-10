@@ -52,6 +52,8 @@ export interface Match {
   stats: MatchStats;
   odds: Odds;
   oddsHistory: { t: number; home: number; draw: number; away: number }[];
+  /** True when a TxLINE-verified proof exists for this match (not demo seed). */
+  hasVerifiedProof?: boolean;
 }
 
 export type MarketType =
@@ -101,7 +103,21 @@ export interface TxLineProof {
   signature: string;
   validatedAt: number;
   solanaTx: string;
-  status: "verified";
+  status: "verified" | "pending";
+}
+
+/** Indexed on-chain escrow lock from a confirmed place-prediction transaction. */
+export interface EscrowProof {
+  id: string;
+  matchId: string;
+  outcomeLabel: string;
+  amount: number;
+  price: number;
+  status: "open" | "won" | "lost" | "settled";
+  txSignature: string;
+  escrowPda: string | null;
+  placedAt: number;
+  explorerUrl: string;
 }
 
 export interface LeaderRow {

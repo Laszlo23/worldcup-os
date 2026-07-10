@@ -5,10 +5,18 @@ CREATE TABLE IF NOT EXISTS users (
   wallet_pubkey TEXT NOT NULL UNIQUE,
   nickname TEXT,
   avatar TEXT,
+  bio TEXT,
+  x_handle TEXT,
+  farcaster_fid BIGINT,
+  farcaster_username TEXT,
+  farcaster_pfp_url TEXT,
+  social_verified_at TIMESTAMPTZ,
   joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_farcaster_fid ON users(farcaster_fid) WHERE farcaster_fid IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS wallets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -33,6 +41,7 @@ CREATE TABLE IF NOT EXISTS matches (
   stadium TEXT,
   stage TEXT,
   kickoff_at TIMESTAMPTZ,
+  score_seq BIGINT NOT NULL DEFAULT 0,
   stats JSONB NOT NULL DEFAULT '{}'::jsonb,
   odds JSONB NOT NULL DEFAULT '{}'::jsonb,
   odds_history JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -140,6 +149,7 @@ CREATE TABLE IF NOT EXISTS proofs (
   final_score_away INT,
   validated_at TIMESTAMPTZ,
   payload JSONB,
+  source TEXT NOT NULL DEFAULT 'txline',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -174,9 +184,20 @@ CREATE TABLE IF NOT EXISTS live_events (
   title TEXT,
   body TEXT,
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  source TEXT NOT NULL DEFAULT 'txline',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS leaderboard (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -278,7 +299,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[
     'users','wallets','matches','match_events','markets','market_options',
     'predictions','escrows','settlements','proofs','transactions',
-    'notifications','live_events','leaderboard','statistics','worker_jobs','txline_credentials'
+    'notifications','live_events','chat_messages','leaderboard','statistics','worker_jobs','txline_credentials'
   ] LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_updated ON %I', t, t);
     EXECUTE format('CREATE TRIGGER trg_%s_updated BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION set_updated_at()', t, t);

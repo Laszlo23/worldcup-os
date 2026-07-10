@@ -1,55 +1,78 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAppStore } from "@/lib/store";
 import { useMarkets } from "@/lib/queries/hooks";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { QuickPredictPanel } from "@/components/quick-predict-panel";
+import { findWinnerMarket, isMatchBettable } from "@/lib/markets";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Activity } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { pageTitle } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/markets")({
-  head: () => ({ meta: [{ title: "Prediction Markets — World Cup OS" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Predictions") }] }),
   component: Markets,
 });
 
 function Markets() {
-  const matches = useAppStore((s) => s.matches).filter((m) => m.status !== "settled");
-  const { data: marketList = [] } = useMarkets();
-  const all = marketList
-    .map((mk) => ({ ...mk, match: matches.find((m) => m.id === mk.matchId)! }))
-    .filter((mk) => Boolean(mk.match));
+  const matches = useAppStore((s) => s.matches);
+  const { data: marketList = [], isLoading } = useMarkets(undefined, true);
+
+  const bettableByMatch = new Map<string, ReturnType<typeof findWinnerMarket>>();
+  for (const mk of marketList) {
+    if (mk.type !== "winner") continue;
+    bettableByMatch.set(mk.matchId, mk);
+  }
+
+  const cards = matches
+    .filter((m) => isMatchBettable(m) && bettableByMatch.has(m.id))
+    .map((match) => ({
+      match,
+      market: bettableByMatch.get(match.id)!,
+    }));
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-display font-bold">Prediction markets</h1>
-        <p className="text-muted-foreground mt-1">Every match, every outcome. Non-custodial, oracle-settled.</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-accent mb-2">Open predictions</p>
+        <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight">Predict on upcoming matches</h1>
+        <p className="text-muted-foreground mt-2 text-sm max-w-2xl">
+          Only fixtures you can still bet on are shown. Pick home, draw, or away — your USDC locks in Solana escrow until TxLINE settles the result.
+        </p>
       </div>
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {all.map((mk) => (
-          <Card key={mk.id} className="glass p-5 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <Badge variant="outline" className="text-xs">{mk.match.home.code} vs {mk.match.away.code}</Badge>
-              <span className="text-xs text-muted-foreground flex items-center gap-1"><Activity className="h-3 w-3" /> ${(mk.totalLiquidity / 1000).toFixed(1)}k</span>
-            </div>
-            <h3 className="font-display font-semibold mb-3">{mk.title}</h3>
-            <div className="space-y-2 flex-1">
-              {mk.outcomes.slice(0, 3).map((o) => (
-                <div key={o.id} className="flex items-center justify-between text-sm glass rounded-lg px-3 py-2">
-                  <span className="truncate flex-1">{o.label}</span>
-                  <span className="font-mono font-semibold text-primary">{o.price.toFixed(2)}</span>
+      {isLoading && (
+        <div className="glass rounded-xl p-10 text-center text-sm text-muted-foreground">Loading open markets…</div>
+      )}
+
+      {!isLoading && cards.length === 0 && (
+        <div className="glass rounded-xl p-10 text-center text-sm text-muted-foreground">
+          No open prediction markets right now. Check back when new fixtures are scheduled.
+        </div>
+      )}
+
+      <div className="space-y-5">
+        {cards.map(({ match, market }) => (
+          <section key={match.id} className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-2xl">{match.home.flag}</span>
+                <div className="min-w-0">
+                  <h2 className="font-display font-semibold truncate">
+                    {match.home.name} vs {match.away.name}
+                  </h2>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {match.stage} · {new Date(match.kickoff).toLocaleString()}
+                  </p>
                 </div>
-              ))}
-              {mk.outcomes.length > 3 && (
-                <div className="text-xs text-muted-foreground text-center">+{mk.outcomes.length - 3} more outcomes</div>
-              )}
-            </div>
-            <Link to="/matches/$id" params={{ id: mk.match.id }} className="mt-4">
-              <Button variant="outline" className="w-full glass">
-                Trade market <ArrowRight className="h-4 w-4" />
+                <span className="text-2xl">{match.away.flag}</span>
+              </div>
+              <Button asChild variant="outline" size="sm" className="glass font-mono text-[10px] uppercase">
+                <Link to="/matches/$id" params={{ id: match.id }} className="inline-flex items-center">
+                  Match detail <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Link>
               </Button>
-            </Link>
-          </Card>
+            </div>
+            <QuickPredictPanel match={match} market={market} variant="compact" />
+          </section>
         ))}
       </div>
     </div>

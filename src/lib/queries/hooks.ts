@@ -79,6 +79,8 @@ export function useProofs() {
       const res = await apiFetch<{ proofs: TxLineProof[]; escrowProofs: EscrowProof[] }>("/api/proofs");
       return res;
     },
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 }
 

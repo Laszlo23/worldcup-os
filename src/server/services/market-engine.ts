@@ -2,9 +2,11 @@ import { hasDatabase } from "../config/env";
 import { maybeOne, one, query } from "../db/postgres";
 import { buildMarketsForMatch } from "@/lib/mock/data";
 import type { Match } from "@/lib/mock/types";
-import { fixtureToMatchRow, mapGameStateToStatus, mapScoreEventType } from "./txline/adapters";
+import { normalizeOdds, parseRealOdds, defaultOdds } from "@/lib/match-utils";
+import { fixtureToMatchRow, mapGameStateToStatus, mapScoreEventType, mergeMatchStatus, pickLatestScoreSnapshot, scoreSnapshotToUpdate } from "./txline/adapters";
 import { txlineClient } from "./txline/client";
 import { insertLiveEvent, enqueueJob } from "../repositories/matches";
+import { initializeMarketIfConfigured } from "../blockchain/market";
 
 export async function syncFixturesFromTxline(): Promise<number> {
   if (!hasDatabase()) return 0;
@@ -62,9 +64,8 @@ export async function syncFixturesFromTxline(): Promise<number> {
       ],
     );
     count += 1;
-
+    await createMarketsForMatch(upserted.external_id, upserted.id);
     if (!existing) {
-      await createMarketsForMatch(upserted.external_id, upserted.id);
       await enqueueJob("market_engine", { matchExternalId: upserted.external_id });
     }
   }
@@ -96,7 +97,7 @@ export async function createMarketsForMatch(matchExternalId: string, matchUuid?:
     kickoff: matchRow.kickoff_at ? new Date(matchRow.kickoff_at).getTime() : Date.now(),
     events: [],
     stats: matchRow.stats,
-    odds: matchRow.odds,
+    odds: parseRealOdds(matchRow.odds as Match["odds"]) ?? defaultOdds(),
     oddsHistory: matchRow.odds_history ?? [],
   };
 
@@ -124,6 +125,13 @@ export async function createMarketsForMatch(matchExternalId: string, matchUuid?:
       [market.id, matchId, market.type, market.title, closesAt, market.closed, market.totalLiquidity],
     );
     if (!mkt) continue;
+    if (market.type === "winner" && !market.closed) {
+      void initializeMarketIfConfigured({
+        matchExternalId: matchExternalId,
+        marketType: market.type,
+        marketUuid: mkt.id,
+      });
+    }
     for (const outcome of market.outcomes) {
       await query(
         `
@@ -141,6 +149,19 @@ export async function createMarketsForMatch(matchExternalId: string, matchUuid?:
       );
     }
   }
+}
+
+export async function closeMarketsForMatch(matchExternalId: string): Promise<void> {
+  if (!hasDatabase()) return;
+  await query(
+    `
+      update markets m
+      set closed = true, updated_at = now()
+      from matches mt
+      where m.match_id = mt.id and mt.external_id = $1 and m.closed = false
+    `,
+    [matchExternalId],
+  );
 }
 
 export async function closeExpiredMarkets(): Promise<number> {
@@ -166,7 +187,171 @@ export async function closeExpiredMarkets(): Promise<number> {
   return markets.length;
 }
 
-export async function processScoreUpdate(payload: Record<string, unknown>) {
+/** Close markets and emit kickoff events once real kickoff time passes. */
+export async function reconcilePostKickoffFixtures(): Promise<{ closed: number; awaiting: number; purgedEvents: number }> {
+  if (!hasDatabase()) return { closed: 0, awaiting: 0, purgedEvents: 0 };
+  const nowIso = new Date().toISOString();
+
+  const pastKickoff = await query<{ id: string; external_id: string; score_home: number; score_away: number }>(
+    `
+      select id, external_id, score_home, score_away
+      from matches
+      where status = 'scheduled'
+        and kickoff_at is not null
+        and kickoff_at <= $1
+    `,
+    [nowIso],
+  );
+
+  let closed = 0;
+  let awaiting = 0;
+  let purgedEvents = 0;
+
+  for (const row of pastKickoff) {
+    awaiting += 1;
+    await closeMarketsForMatch(row.external_id);
+
+    const openMarkets = await query<{ id: string }>(
+      "select id from markets where match_id = $1 and closed = false",
+      [row.id],
+    );
+    if (openMarkets.length) {
+      await query("update markets set closed = true, updated_at = now() where match_id = $1 and closed = false", [row.id]);
+      closed += openMarkets.length;
+    }
+
+    const existing = await maybeOne<{ id: string }>(
+      `
+        select le.id
+        from live_events le
+        join matches mt on mt.id = le.match_id
+        where mt.external_id = $1
+          and le.event_type = 'kickoff_waiting'
+        limit 1
+      `,
+      [row.external_id],
+    );
+    if (!existing) {
+      await insertLiveEvent(
+        row.external_id,
+        "kickoff_waiting",
+        "Kickoff — awaiting TxLINE",
+        "Markets locked · live score feed pending from TxLINE devnet",
+        { matchExternalId: row.external_id },
+      );
+    }
+
+    if (row.score_home === 0 && row.score_away === 0) {
+      const removed = await query<{ id: string }>(
+        `
+          delete from match_events
+          where match_id = $1
+            and type = 'goal'
+          returning id
+        `,
+        [row.id],
+      );
+      purgedEvents += removed.length;
+    }
+  }
+
+  return { closed, awaiting, purgedEvents };
+}
+
+/** Remove duplicate goal rows in the live feed (same TxLINE seq). */
+export async function dedupeGoalBroadcasts(): Promise<number> {
+  if (!hasDatabase()) return 0;
+  const removed = await query<{ id: string }>(
+    `
+      delete from live_events le
+      where le.event_type = 'goal'
+        and le.id not in (
+          select distinct on (match_id, payload->>'seq') id
+          from live_events
+          where event_type = 'goal' and payload->>'seq' is not null
+          order by match_id, payload->>'seq', created_at asc
+        )
+      returning id
+    `,
+  );
+  return removed.length;
+}
+
+/** Poll TxLINE scores snapshot — state tick + incremental goal events only. */
+export async function syncScoresSnapshotsFromTxline(): Promise<number> {
+  if (!hasDatabase()) return 0;
+  const windowStart = new Date(Date.now() - 8 * 60 * 60_000).toISOString();
+  const windowEnd = new Date(Date.now() + 2 * 60 * 60_000).toISOString();
+
+  const rows = await query<{ txline_fixture_id: number; external_id: string }>(
+    `
+      select txline_fixture_id, external_id
+      from matches
+      where txline_fixture_id is not null
+        and kickoff_at between $1 and $2
+        and status not in ('settled')
+    `,
+    [windowStart, windowEnd],
+  );
+
+  let applied = 0;
+  for (const row of rows) {
+    const fixtureId = Number(row.txline_fixture_id);
+    if (!fixtureId) continue;
+
+    const match = await maybeOne<{ id: string; score_seq: number }>(
+      "select id, score_seq from matches where txline_fixture_id = $1",
+      [fixtureId],
+    );
+    if (!match) continue;
+
+    const snapshots = await txlineClient.getScoresSnapshot(fixtureId);
+    if (!snapshots.length) continue;
+
+    const latest = pickLatestScoreSnapshot(snapshots);
+    if (latest) {
+      const stateUpdate = scoreSnapshotToUpdate(latest);
+      if (stateUpdate) {
+        delete stateUpdate.eventType;
+        delete stateUpdate.type;
+        await processScoreUpdate(stateUpdate, { stateOnly: true });
+        applied += 1;
+      }
+    }
+
+    const maxRow = await maybeOne<{ max: string }>(
+      "select coalesce(max(txline_seq), 0)::text as max from match_events where match_id = $1",
+      [match.id],
+    );
+    const maxEventSeq = Number(maxRow?.max ?? 0);
+
+    const timelineActions = new Set(["goal", "yellow_card", "red_card", "corner", "penalty", "var", "substitution"]);
+    const newEvents = snapshots
+      .filter((raw): raw is Record<string, unknown> => Boolean(raw) && typeof raw === "object")
+      .filter((raw) => timelineActions.has(String(raw.Action ?? "").toLowerCase()))
+      .filter((raw) => Number(raw.Seq ?? 0) > maxEventSeq)
+      .sort((a, b) => Number(a.Seq ?? 0) - Number(b.Seq ?? 0));
+
+    for (const raw of newEvents) {
+      const update = scoreSnapshotToUpdate(raw);
+      if (update) {
+        await processScoreUpdate(update);
+        applied += 1;
+      }
+    }
+  }
+  return applied;
+}
+
+/** @deprecated Prefer syncScoresSnapshotsFromTxline — historical endpoint is often empty on devnet. */
+export async function syncHistoricalScoresFromTxline(): Promise<number> {
+  return 0;
+}
+
+export async function processScoreUpdate(
+  payload: Record<string, unknown>,
+  options?: { stateOnly?: boolean },
+) {
   if (!hasDatabase()) return;
   const fixtureId = Number(payload.fixtureId ?? payload.fixture_id ?? 0);
   if (!fixtureId) return;
@@ -174,19 +359,57 @@ export async function processScoreUpdate(payload: Record<string, unknown>) {
   const match = await maybeOne<Record<string, unknown>>("select * from matches where txline_fixture_id = $1", [fixtureId]);
   if (!match) return;
 
-  const gameState = Number(payload.gameState ?? payload.game_state ?? 1);
-  const status = mapGameStateToStatus(gameState, String(payload.status ?? ""));
+  const action = String(payload.action ?? payload.Action ?? "");
+  const gameState = Number(payload.gameState ?? payload.game_state ?? payload.StatusId ?? payload.statusId ?? 1);
+  const status = mergeMatchStatus(
+    String(match.status),
+    mapGameStateToStatus(gameState, String(payload.status ?? ""), action),
+  );
   const scoreHome = Number((payload.score as Record<string, number>)?.home ?? payload.scoreHome ?? match.score_home);
   const scoreAway = Number((payload.score as Record<string, number>)?.away ?? payload.scoreAway ?? match.score_away);
-  const minute = Number(payload.minute ?? payload.clock ?? match.minute);
+  const rawMinute = Number(payload.minute ?? payload.clock ?? 0);
+  const minute = rawMinute > 0 ? Math.max(Number(match.minute ?? 0), rawMinute) : Number(match.minute ?? 0);
 
-  await query(
-    "update matches set score_home = $1, score_away = $2, status = $3, minute = $4, raw_payload = $5, updated_at = now() where id = $6",
-    [scoreHome, scoreAway, status, minute, payload, match.id],
-  );
+  const scoreSeq = Number(payload.seq ?? payload.scoreSeq ?? payload.score_seq ?? 0);
+  const currentSeq = Number(match.score_seq ?? 0);
+  const wasFinished = match.status === "finished" || match.status === "settled";
 
-  const eventType = String(payload.eventType ?? payload.type ?? "");
+  const stateChanged =
+    scoreHome !== Number(match.score_home) ||
+    scoreAway !== Number(match.score_away) ||
+    status !== String(match.status) ||
+    minute !== Number(match.minute) ||
+    scoreSeq > currentSeq;
+
+  if (!stateChanged && options?.stateOnly) return;
+
+  if (scoreSeq > 0 && scoreSeq >= currentSeq) {
+    await query(
+      "update matches set score_home = $1, score_away = $2, status = $3, minute = $4, score_seq = $5, raw_payload = $6, updated_at = now() where id = $7",
+      [scoreHome, scoreAway, status, minute, scoreSeq, payload, match.id],
+    );
+  } else if (stateChanged) {
+    await query(
+      "update matches set score_home = $1, score_away = $2, status = $3, minute = $4, raw_payload = $5, updated_at = now() where id = $6",
+      [scoreHome, scoreAway, status, minute, payload, match.id],
+    );
+  }
+
+  if (status === "live" || status === "halftime" || status === "finished" || status === "settled") {
+    await closeMarketsForMatch(String(match.external_id));
+  }
+
+  const eventType = options?.stateOnly ? "" : String(payload.eventType ?? payload.type ?? "");
   if (eventType) {
+    const txlineSeq = Number(payload.seq ?? 0);
+    if (txlineSeq) {
+      const exists = await maybeOne<{ id: string }>(
+        "select id from match_events where match_id = $1 and txline_seq = $2",
+        [match.id, txlineSeq],
+      );
+      if (exists) return;
+    }
+
     const mapped = mapScoreEventType(eventType);
     await query(
       `
@@ -196,7 +419,7 @@ export async function processScoreUpdate(payload: Record<string, unknown>) {
       [
         match.id,
         String(payload.seq ?? payload.id ?? `${Date.now()}`),
-        Number(payload.seq ?? 0) || null,
+        txlineSeq || null,
         minute,
         mapped,
         String(payload.teamId ?? payload.team_id ?? ""),
@@ -206,22 +429,40 @@ export async function processScoreUpdate(payload: Record<string, unknown>) {
       ],
     );
 
-    if (mapped === "goal") {
+    if (mapped === "goal" && txlineSeq) {
       await insertLiveEvent(
-        match.external_id,
+        String(match.external_id),
         "goal",
         "Goal",
         `${payload.player ?? "Player"} · ${minute}'`,
-        payload,
+        { ...payload, seq: txlineSeq },
       );
+      try {
+        const { maybeOnGoalEngagement } = await import("./engagement-polls");
+        await maybeOnGoalEngagement({
+          matchId: String(match.id),
+          matchExternalId: String(match.external_id),
+          eventKey: `goal_${txlineSeq}`,
+          player: payload.player ? String(payload.player) : undefined,
+          minute,
+        });
+      } catch (err) {
+        console.error("engagement goal hook:", err);
+      }
     }
   }
 
-  if (status === "finished") {
+  if (status === "finished" && !wasFinished) {
     await enqueueJob("settlement", { matchExternalId: match.external_id, fixtureId });
-    await insertLiveEvent(match.external_id, "settlement_started", "Settlement started", "TxLINE final state received", {
-      fixtureId,
-    });
+    const settlementNotice = await maybeOne<{ id: string }>(
+      "select id from live_events where match_id = $1 and event_type = 'settlement_started' limit 1",
+      [match.id],
+    );
+    if (!settlementNotice) {
+      await insertLiveEvent(String(match.external_id), "settlement_started", "Full time", "Settlement queued", {
+        fixtureId,
+      });
+    }
   }
 }
 

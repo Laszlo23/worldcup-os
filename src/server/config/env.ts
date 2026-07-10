@@ -53,6 +53,12 @@ export const env = {
   workerSecret: optional("WORKER_SECRET", "dev-worker-secret"),
   sessionSecret: optional("SESSION_SECRET", "dev-session-secret"),
   appUrl: optional("VITE_APP_URL", "http://localhost:5173"),
+  allowedOrigins: optional("APP_ALLOWED_ORIGINS")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+  neynarApiKey: optional("NEYNAR_API_KEY"),
+  farcasterDomain: optional("FARCASTER_DOMAIN", optional("VITE_FARCASTER_DOMAIN", "localhost")),
 };
 
 export function hasDatabase(): boolean {
@@ -67,6 +73,7 @@ export function hasTxlineCredentials(): boolean {
 }
 
 export function useMockFallback(): boolean {
+  if (isProduction()) return false;
   if (env.requireLiveData) return false;
   return !hasDatabase();
 }
@@ -78,6 +85,9 @@ export function assertProductionSecrets(): void {
   }
   if (env.sessionSecret === "dev-session-secret") {
     throw new Error("SESSION_SECRET must be set in production");
+  }
+  if (process.env.ALLOW_SIMULATED_SETTLE === "true") {
+    throw new Error("ALLOW_SIMULATED_SETTLE must not be enabled in production");
   }
   if (!hasDatabase() && env.requireLiveData) {
     throw new Error("Database connection required in production when REQUIRE_LIVE_DATA=true");

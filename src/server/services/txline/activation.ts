@@ -2,8 +2,8 @@ import axios from "axios";
 import { env } from "../../config/env";
 import { saveTxlineCredentials } from "./credentials";
 
-export function buildActivationMessage(txSig: string, jwt: string): string {
-  return `${txSig}::${jwt}`;
+export function buildActivationMessage(txSig: string, jwt: string, leagues: number[] = []): string {
+  return `${txSig}:${leagues.join(",")}:${jwt}`;
 }
 
 export async function startGuestSession(): Promise<string> {
@@ -19,15 +19,14 @@ export async function activateApiToken(params: {
   guestJwt?: string;
 }): Promise<{ apiToken: string; guestJwt: string; expiresAt: string | null }> {
   const guestJwt = params.guestJwt ?? (await startGuestSession());
-  const message = buildActivationMessage(params.txSig, guestJwt);
+  const leagues: number[] = [];
 
   const res = await axios.post(
     `${env.txlineApiOrigin}/api/token/activate`,
     {
-      message,
-      signature: params.walletSignature,
-      leagues: [],
-      serviceLevel: env.txlineServiceLevel,
+      txSig: params.txSig,
+      walletSignature: params.walletSignature,
+      leagues,
     },
     {
       headers: {

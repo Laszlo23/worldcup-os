@@ -2,6 +2,10 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { applySecurityHeaders } from "./server/middleware/security";
+import { assertProductionSecrets } from "./server/config/env";
+
+assertProductionSecrets();
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -49,6 +53,7 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+      applySecurityHeaders(response.headers);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);

@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Match {
+  id               String       @id @default(cuid())
+  externalId       String       @unique @map("external_id")
+  txlineFixtureId  Int?         @map("txline_fixture_id")
+  homeTeam         Json         @map("home_team")
+  awayTeam         Json         @map("away_team")
+  scoreHome        Int          @default(0) @map("score_home")
+  scoreAway        Int          @default(0) @map("score_away")
+  status           String       @default("scheduled")
+  minute           Int          @default(0)
+  stadium          String?
+  stage            String?
+  kickoffAt        DateTime?    @map("kickoff_at")
+  stats            Json         @default("{}")
+  odds             Json         @default("{}")
+  oddsHistory      Json         @default("[]") @map("odds_history")
+  momentum         Float        @default(50)
+  winProbability   Json         @default("{}") @map("win_probability")
+  rawPayload       Json?        @map("raw_payload")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  events      MatchEvent[]
+  signals     Signal[]
+  predictions Prediction[]
+
+  @@index([status])
+  @@index([txlineFixtureId])
+  @@map("matches")
+}
+
+model MatchEvent {
+  id        String   @id @default(cuid())
+  matchId   String   @map("match_id")
+  eventType String   @map("event_type")
+  minute    Int      @default(0)
+  team      String?
+  player    String?
+  detail    String?
+  txlineSeq Int?     @map("txline_seq")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@map("match_events")
+}
+
+model Signal {
+  id          String   @id @default(cuid())
+  matchId     String   @map("match_id")
+  type        String   @default("bullish")
+  headline    String
+  prediction  String
+  confidence  Float
+  impact      String   @default("medium")
+  reasoning   Json     @default("[]")
+  metrics     Json     @default("{}")
+  expectedValue Float? @map("expected_value")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  match           Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  predictions     Prediction[]
+  agentDecisions  AgentDecision[]
+
+  @@index([matchId])
+  @@index([confidence])
+  @@index([createdAt])
+  @@map("signals")
+}
+
+model Prediction {
+  id           String   @id @default(cuid())
+  signalId     String   @map("signal_id")
+  matchId      String   @map("match_id")
+  marketLabel  String   @map("market_label")
+  side         String
+  odds         Float
+  virtualStake Float    @default(100) @map("virtual_stake")
+  confidence   Float
+  result       String?
+  roi          Float?
+  createdAt    DateTime @default(now()) @map("created_at")
+  settledAt    DateTime? @map("settled_at")
+
+  signal      Signal             @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  match       Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  certificate OnChainCertificate?
+
+  @@index([signalId])
+  @@index([matchId])
+  @@map("predictions")
+}
+
+model Agent {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  strategy       String
+  strategyConfig Json     @default("{}") @map("strategy_config")
+  balance        Float    @default(10000)
+  totalTrades    Int      @default(0) @map("total_trades")
+  wins           Int      @default(0)
+  losses         Int      @default(0)
+  roi            Float    @default(0)
+  riskScore      Float    @default(0) @map("risk_score")
+  treasuryPubkey String?  @map("treasury_pubkey")
+  treasuryBalance Float   @default(0) @map("treasury_balance")
+  lastSyncedAt   DateTime? @map("last_synced_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  decisions AgentDecision[]
+
+  @@map("agents")
+}
+
+model AgentDecision {
+  id        String   @id @default(cuid())
+  agentId   String   @map("agent_id")
+  signalId  String   @map("signal_id")
+  action    String
+  stake     Float
+  odds      Float
+  outcome   String?
+  roi       Float?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agent  Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  signal Signal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([signalId])
+  @@map("agent_decisions")
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(cuid())
+  balance     Float    @default(10000)
+  pnl         Float    @default(0)
+  pnlPercent  Float    @default(0) @map("pnl_percent")
+  winRate     Float    @default(0) @map("win_rate")
+  totalTrades Int      @default(0) @map("total_trades")
+  equityCurve Json     @default("[]") @map("equity_curve")
+  dailyPnl    Json     @default("[]") @map("daily_pnl")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("portfolio_snapshots")
+}
+
+model OnChainCertificate {
+  id           String   @id @default(cuid())
+  predictionId String   @unique @map("prediction_id")
+  memo         String
+  txHash       String?  @map("tx_hash")
+  explorerUrl  String?  @map("explorer_url")
+  status       String   @default("pending")
+  anchoredAt   DateTime? @map("anchored_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  prediction Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  @@map("on_chain_certificates")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String   @map("session_id")
+  role      String
+  content   String
+  context   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+model DemoRun {
+  id        String   @id @default(cuid())
+  name      String
+  step      Int      @default(0)
+  status    String   @default("idle")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("demo_runs")
+}

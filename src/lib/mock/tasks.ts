@@ -11,6 +11,8 @@ export interface CommunityTask {
   ctaLabel: string;
   ctaUrl: string;
   featured?: boolean;
+  imageSrc?: string;
+  imageAlt?: string;
 }
 
 export const COMMUNITY_TASKS: CommunityTask[] = [
@@ -44,6 +46,8 @@ export const COMMUNITY_TASKS: CommunityTask[] = [
     timeEstimate: "5 min",
     ctaLabel: "Open Replay",
     ctaUrl: "/replay",
+    imageSrc: "/moment-topbin.jpg",
+    imageAlt: "Ball curls into the top corner",
   },
   {
     id: "first-prediction",
@@ -54,6 +58,8 @@ export const COMMUNITY_TASKS: CommunityTask[] = [
     timeEstimate: "3 min",
     ctaLabel: "Browse Markets",
     ctaUrl: "/markets",
+    imageSrc: "/moment-volley.jpg",
+    imageAlt: "Player volleys the ball under stadium lights",
   },
   {
     id: "verify-proof",
@@ -64,6 +70,8 @@ export const COMMUNITY_TASKS: CommunityTask[] = [
     timeEstimate: "2 min",
     ctaLabel: "View Proofs",
     ctaUrl: "/proofs",
+    imageSrc: "/moment-save.jpg",
+    imageAlt: "Goalkeeper makes a decisive save",
   },
   {
     id: "oracle-tour",

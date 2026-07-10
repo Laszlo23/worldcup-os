@@ -1,6 +1,6 @@
 import { hasDatabase } from "../config/env";
 import { query } from "../db/postgres";
-import { syncFixturesFromTxline, closeExpiredMarkets, processScoreUpdate, processOddsUpdate } from "../services/market-engine";
+import { syncFixturesFromTxline, closeExpiredMarkets, processScoreUpdate, processOddsUpdate, reconcilePostKickoffFixtures, syncScoresSnapshotsFromTxline, dedupeGoalBroadcasts } from "../services/market-engine";
 import { processSettlementJob } from "../services/settlement";
 import { getAnalyticsSnapshot } from "../services/analytics";
 import { listPredictionsForWallet } from "../repositories/matches";
@@ -40,7 +40,11 @@ export async function runWorkerTick() {
       switch (job.type) {
         case "settlement": {
           const payload = job.payload as { matchExternalId: string; fixtureId: number };
-          results.settlement = await processSettlementJob(payload.matchExternalId, payload.fixtureId);
+          const settlementResult = await processSettlementJob(payload.matchExternalId, payload.fixtureId);
+          results.settlement = settlementResult;
+          if (!settlementResult.ok) {
+            throw new Error(String(settlementResult.reason ?? "settlement_failed"));
+          }
           break;
         }
         case "market_engine": {
@@ -72,6 +76,16 @@ export async function runWorkerTick() {
 
   results.fixturesSynced = await syncFixturesFromTxline();
   results.marketsClosed = await closeExpiredMarkets();
+  results.postKickoff = await reconcilePostKickoffFixtures();
+  results.scoreSnapshots = await syncScoresSnapshotsFromTxline();
+  results.goalDeduped = await dedupeGoalBroadcasts();
+
+  try {
+    const { syncEngagementPolls } = await import("../services/engagement-polls");
+    results.engagementPollsResolved = await syncEngagementPolls();
+  } catch (err) {
+    console.error("engagement poll sync:", err);
+  }
 
   return { ok: true, results };
 }

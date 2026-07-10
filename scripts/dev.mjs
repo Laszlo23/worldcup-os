@@ -6,7 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const apiPort = process.env.NITRO_DEV_PORT ?? "3005";
 const apiUrl = `http://127.0.0.1:${apiPort}`;
 
-function waitForApi(maxMs = 30_000): Promise<void> {
+function waitForApi(maxMs = 30_000) {
   const started = Date.now();
   return new Promise((resolve, reject) => {
     const tick = async () => {
@@ -31,7 +31,7 @@ const nitro = spawn("npx", ["nitro", "dev", "--port", apiPort, "--host", "127.0.
   env: { ...process.env, NITRO_DEV_PORT: apiPort },
 });
 
-let vite: ReturnType<typeof spawn> | null = null;
+let vite = null;
 
 function shutdown(code = 0) {
   nitro.kill("SIGTERM");

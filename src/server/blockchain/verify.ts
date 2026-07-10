@@ -1,6 +1,7 @@
 import { Connection, PublicKey, ParsedTransactionWithMeta } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { getConnection, getUsdcMint, getEscrowPdaForExternalMarket } from "./escrow";
+import { loadSettlementAuthority } from "./settlement";
 import { env } from "../config/env";
 
 export type EscrowVerification = {
@@ -85,6 +86,46 @@ export async function simulateSettlementTx(signature: string): Promise<boolean> 
     return Boolean(tx && !tx.meta?.err);
   } catch {
     return false;
+  }
+}
+
+export async function verifyClaimPayoutTx(params: {
+  txSignature: string;
+  userPubkey: string;
+  expectedAmount: number;
+}): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    const connection = getConnection();
+    const tx = await connection.getParsedTransaction(params.txSignature, {
+      maxSupportedTransactionVersion: 0,
+      commitment: "confirmed",
+    });
+
+    if (!tx || tx.meta?.err) {
+      return { ok: false, reason: "transaction_not_found_or_failed" };
+    }
+
+    const user = new PublicKey(params.userPubkey);
+    const mint = getUsdcMint();
+    const userAta = getAssociatedTokenAddressSync(mint, user);
+    const authority = loadSettlementAuthority();
+    if (!authority) {
+      return { ok: false, reason: "settlement_authority_missing" };
+    }
+    const authorityAta = getAssociatedTokenAddressSync(mint, authority.publicKey);
+    const expectedLamports = BigInt(Math.floor(params.expectedAmount * 1_000_000));
+
+    const transfer = findTokenTransfer(tx, authorityAta.toBase58(), userAta.toBase58());
+    if (!transfer) {
+      return { ok: false, reason: "payout_transfer_not_found" };
+    }
+    if (transfer.amount !== expectedLamports) {
+      return { ok: false, reason: "payout_amount_mismatch" };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : "verification_failed" };
   }
 }
 

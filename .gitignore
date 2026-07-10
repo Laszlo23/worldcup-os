@@ -32,3 +32,10 @@ target/
 *.njsproj
 *.sln
 *.sw?
+
+# Generated readiness reports (re-run npm run test:hackathon-readiness)
+hackathon-readiness-report.json
+hackathon-readiness-report.md
+
+# Repo export staging (scripts/publish-hackathon-repos.sh)
+.publish/

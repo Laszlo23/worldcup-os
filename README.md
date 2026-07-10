@@ -77,6 +77,25 @@ See `.env.example`. Key variables:
 
 See [HACKATHON_DEMO.md](./HACKATHON_DEMO.md) for the 5-minute judge walkthrough.
 
+## Documentation
+
+| Doc | Purpose |
+|-----|---------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, data flow, deployment |
+| [TXLINE.md](./TXLINE.md) | TxLINE endpoints, auth, hackathon feedback |
+| [SUBMISSION.md](./SUBMISSION.md) | Hackathon form copy-paste |
+| [ONCHAIN_DEMO.md](./ONCHAIN_DEMO.md) | Predict → settle → claim on devnet |
+| [DEPLOY.md](./DEPLOY.md) | Production deploy |
+
+## Readiness audit
+
+```bash
+BASE_URL=https://wmos.buildingcultureid.space npm run test:hackathon-readiness
+npm run verify:worker
+```
+
+Generates `hackathon-readiness-report.md` for judges.
+
 ## Live demo
 
 **https://wmos.buildingcultureid.space**

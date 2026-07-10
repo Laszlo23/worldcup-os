@@ -1,7 +1,7 @@
 import { defineHandler } from "nitro";
 import { z } from "zod";
 import { activateApiToken } from "@/server/services/txline/activation";
-import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireAdmin } from "@/server/middleware/http";
+import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireAdmin, requireMutationOrigin } from "@/server/middleware/http";
 
 const activateSchema = z.object({
   txSig: z.string().min(1),
@@ -10,6 +10,7 @@ const activateSchema = z.object({
 
 export default defineHandler(async (event) => {
   if (!(await rateLimit(event, "txline-activate", 10))) return errorResponse("Rate limit exceeded", 429);
+  if (!requireMutationOrigin(event)) return errorResponse("Forbidden", 403);
 
   const wallet = await requireSession(event);
   if (wallet instanceof Response) return wallet;

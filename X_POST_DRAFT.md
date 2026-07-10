@@ -7,12 +7,13 @@ Post this before submitting the hackathon form. Save the tweet URL for **Tweet L
 ## Single post (recommended)
 
 ```
-We built World Cup OS for the TxLINE hackathon — verifiable World Cup prediction markets powered by SL12 live data + Solana escrow.
+We built World Cup OS for the TxLINE hackathon — World Cup prediction markets with TxLINE fixtures + Solana devnet USDC escrow.
 
-🔴 Oracle Command Center (live TxLINE pipeline)
-⚽ 90s Replay Mode
-✅ Cryptographic Match Certificates
+🔴 Oracle Command Center (TxLINE pipeline)
+⚽ On-chain predictions (explorer-verifiable)
+✅ Verified Match Certificates after final whistle (auto settlement)
 
+Watch demo → https://youtu.be/WNSlVMCMFxg
 Try it → https://wmos.buildingcultureid.space/oracle
 Code → https://github.com/Laszlo23/worldcup-os
 ```
@@ -48,10 +49,13 @@ Verified Match Certificates show Merkle roots from TxLINE stat-validation + Sola
 
 **4/4**
 ```
-Open source on GitHub. Connect Phantom on a top-level tab (not iframe).
+Open source on GitHub. Connect Phantom on devnet in a top-level tab.
 
+🎬 Demo: https://youtu.be/WNSlVMCMFxg
 🔗 https://wmos.buildingcultureid.space
 📦 https://github.com/Laszlo23/worldcup-os
+
+Settlement + certificates trigger when a real fixture ends on TxLINE — predict + escrow is live now.
 
 #Solana #TxLINE #Hackathon
 ```

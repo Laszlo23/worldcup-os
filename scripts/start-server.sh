@@ -4,4 +4,4 @@ set -a
 source "$ROOT/.env"
 set +a
 cd "$ROOT"
-exec npm run start:hackathon
+exec npm run start:prod

@@ -2,6 +2,7 @@ import { hasDatabase } from "../config/env";
 import { maybeOne, query } from "../db/postgres";
 
 const memoryNonces = new Map<string, { wallet: string; expiresAt: number; used: boolean }>();
+let preferMemoryNonces = false;
 
 const NONCE_TTL_MS = 5 * 60_000;
 
@@ -9,7 +10,7 @@ export async function createNonce(walletPubkey: string): Promise<string> {
   const nonce = crypto.randomUUID();
   const expiresAt = Date.now() + NONCE_TTL_MS;
 
-  if (hasDatabase()) {
+  if (hasDatabase() && !preferMemoryNonces) {
     try {
       await query("insert into auth_nonces (wallet_pubkey, nonce, expires_at) values ($1, $2, $3)", [
         walletPubkey,
@@ -18,7 +19,7 @@ export async function createNonce(walletPubkey: string): Promise<string> {
       ]);
       return nonce;
     } catch {
-      // fall through to memory when migrations aren't applied yet
+      preferMemoryNonces = true;
     }
   }
 
@@ -27,7 +28,7 @@ export async function createNonce(walletPubkey: string): Promise<string> {
 }
 
 export async function consumeNonce(walletPubkey: string, nonce: string): Promise<boolean> {
-  if (hasDatabase()) {
+  if (hasDatabase() && !preferMemoryNonces) {
     try {
       const data = await maybeOne<{ id: string }>(
         `
@@ -46,7 +47,7 @@ export async function consumeNonce(walletPubkey: string, nonce: string): Promise
         return true;
       }
     } catch {
-      // fall through to memory
+      preferMemoryNonces = true;
     }
   }
 

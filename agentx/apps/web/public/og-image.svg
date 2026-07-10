@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0a0e1a"/>
+      <stop offset="0.5" stop-color="#12182b"/>
+      <stop offset="1" stop-color="#0a0e1a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="180" y1="120" x2="1020" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f5d78e"/>
+      <stop offset="1" stop-color="#c9a227"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="980" cy="120" r="180" fill="#c9a227" opacity="0.1"/>
+  <circle cx="160" cy="520" r="220" fill="#7c3aed" opacity="0.08"/>
+  <text x="96" y="240" fill="#f8fafc" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="700">TxLINE AI Trader</text>
+  <text x="96" y="320" fill="#e2e8f0" font-family="Inter, system-ui, sans-serif" font-size="34" font-weight="500">Real-time sports intelligence. Autonomous agents.</text>
+  <text x="96" y="400" fill="#94a3b8" font-family="IBM Plex Mono, monospace" font-size="22" letter-spacing="3">TXLINE FEED · AI SIGNALS · SOLANA CERTIFICATES</text>
+  <rect x="96" y="450" width="480" height="6" rx="3" fill="url(#gold)"/>
+</svg>

@@ -12,7 +12,7 @@ const STEPS = [
 export function PipelineViz({ activeIndex = 2 }: { activeIndex?: number }) {
   return (
     <div className="space-y-3">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Data pipeline</div>
+      <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-mono">Data pipeline</div>
       <div className="relative space-y-1">
         {STEPS.map((step, i) => {
           const active = i <= activeIndex;
