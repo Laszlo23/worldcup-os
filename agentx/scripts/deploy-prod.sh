@@ -21,7 +21,7 @@ rsync -az --delete \
 
 ssh -i "$SSH_KEY" "$HOST" "bash $REMOTE_BASE/scripts/patch-env.sh $REMOTE_BASE"
 
-ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_BASE && rm -f apps/web/package-lock.json && npm ci && npm install @tailwindcss/oxide-linux-x64-gnu@4.3.2 lightningcss-linux-x64-gnu@1.32.0 -w web --save-optional && set -a && . ./.env && set +a && npx prisma generate && npx prisma db push --skip-generate"
+ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_BASE && rm -f apps/web/package-lock.json && npm install && npm install @tailwindcss/oxide-linux-x64-gnu@4.3.2 lightningcss-linux-x64-gnu@1.32.0 -w web --save-optional && set -a && . ./.env && set +a && npx prisma generate && npx prisma db push --skip-generate"
 
 ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_BASE/services/ai-engine && (python3.11 -m venv .venv 2>/dev/null || python3 -m venv .venv) && .venv/bin/pip install -q -r requirements.txt"
 
@@ -41,7 +41,9 @@ TREASURY
 
 ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_BASE/apps/web && set -a && . ../../.env && set +a && npm run build"
 
-ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_BASE && pm2 startOrRestart ecosystem.config.cjs && pm2 save"
+ssh -i "$SSH_KEY" "$HOST" "bash $REMOTE_BASE/scripts/prepare-standalone.sh $REMOTE_BASE"
+
+ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_BASE && pm2 delete txline-ai-trader-web 2>/dev/null || true && pm2 start ecosystem.config.cjs && pm2 save"
 
 ssh -i "$SSH_KEY" "$HOST" "PORT=3041 API_PORT=8041 bash $REMOTE_BASE/scripts/setup-ssl.sh"
 

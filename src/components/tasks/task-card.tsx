@@ -10,11 +10,11 @@ export function TaskCard({ task }: { task: CommunityTask }) {
   const { isCompleted, completeTask } = useTasksStore();
   const done = isCompleted(task.id);
 
-  function handleCta() {
+  async function handleCta() {
     if (task.ctaUrl.startsWith("http")) {
       window.open(task.ctaUrl, "_blank", "noopener");
     }
-    completeTask(task.id);
+    await completeTask(task.id);
   }
 
   const isInternal = task.ctaUrl.startsWith("/");
@@ -38,7 +38,7 @@ export function TaskCard({ task }: { task: CommunityTask }) {
       <h3 className="font-display font-semibold text-lg mb-2">{task.title}</h3>
       <p className="text-sm text-muted-foreground flex-1 mb-4">{task.description}</p>
       {isInternal ? (
-        <Button asChild size="sm" className={done ? "bg-muted" : "bg-gold/90 text-gold-foreground hover:bg-gold border-0"} onClick={() => completeTask(task.id)}>
+        <Button asChild size="sm" className={done ? "bg-muted" : "bg-gold/90 text-gold-foreground hover:bg-gold border-0"} onClick={() => void completeTask(task.id)}>
           <Link to={task.ctaUrl}>
             {done ? <><Check className="h-3.5 w-3.5" /> Completed</> : <>{task.ctaLabel} <ExternalLink className="h-3 w-3" /></>}
           </Link>
@@ -47,7 +47,7 @@ export function TaskCard({ task }: { task: CommunityTask }) {
         <Button
           size="sm"
           className={done ? "bg-muted" : "bg-gold/90 text-gold-foreground hover:bg-gold border-0 gap-1"}
-          onClick={handleCta}
+          onClick={() => void handleCta()}
         >
           {done ? <><Check className="h-3.5 w-3.5" /> Completed</> : <>{task.ctaLabel} <ExternalLink className="h-3 w-3" /></>}
         </Button>

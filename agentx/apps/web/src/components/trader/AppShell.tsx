@@ -11,6 +11,8 @@ import { ConnectWalletButton } from "@/components/wallet/connect-wallet";
 import { DevnetFaucetButton } from "@/components/wallet/devnet-faucet";
 import { useWalletStore } from "@/lib/store/wallet";
 import { LegalDisclaimer } from "@/components/seo/legal-disclaimer";
+import { DevnetBanner } from "@/components/site/devnet-banner";
+import { PartnerFooter } from "@/components/site/partner-footer";
 import { SoccerBackdrop } from "@/components/soccer/soccer-backdrop";
 import type { SoccerBackdropVariant } from "@/lib/soccer-assets";
 
@@ -64,23 +66,34 @@ export function AppHeader() {
   const { data: health } = useQuery({ queryKey: ["health"], queryFn: () => api.health(), refetchInterval: 30000 });
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border glass px-4 py-3">
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg gold-gradient">
-          <Zap className="h-4 w-4 text-primary-foreground" />
+    <header className="sticky top-0 z-40 border-b border-border glass pt-[env(safe-area-inset-top)]">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg gold-gradient">
+            <Zap className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium tracking-widest text-gold">TxLINE</p>
+            <p className="truncate text-sm font-bold leading-none">AI TRADER</p>
+          </div>
         </div>
-        <div>
-          <p className="text-xs font-medium tracking-widest text-gold">TxLINE</p>
-          <p className="text-sm font-bold leading-none">AI TRADER</p>
+        <div className="hidden shrink-0 sm:block">
+          <LiveBadge connected={connected} lastEventAt={health?.lastEventAt} />
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        {wallet.connected && (
-          <span className="hidden text-xs text-muted-foreground sm:inline">{wallet.balance.toFixed(0)} USDC</span>
+      <div className="flex items-center justify-between gap-2 border-t border-border/50 px-3 py-2 sm:border-0 sm:px-4 sm:pb-3">
+        {wallet.connected ? (
+          <span className="text-xs text-muted-foreground">{wallet.balance.toFixed(0)} USDC</span>
+        ) : (
+          <span className="text-xs text-muted-foreground sm:hidden">Devnet demo</span>
         )}
-        <DevnetFaucetButton />
-        <ConnectWalletButton />
-        <LiveBadge connected={connected} lastEventAt={health?.lastEventAt} />
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <DevnetFaucetButton />
+          <ConnectWalletButton compact />
+          <div className="sm:hidden">
+            <LiveBadge connected={connected} lastEventAt={health?.lastEventAt} />
+          </div>
+        </div>
       </div>
     </header>
   );
@@ -97,6 +110,7 @@ export function AppShell({
 }) {
   return (
     <>
+      <DevnetBanner />
       <SoccerBackdrop variant={backdropVariant} />
       <div className="relative z-10 mx-auto min-h-dvh max-w-lg pb-20">
         <AppHeader />
@@ -104,6 +118,7 @@ export function AppShell({
           {children}
           {showDisclaimer && <LegalDisclaimer className="mt-6" />}
         </main>
+        <PartnerFooter compact />
         <BottomNav />
       </div>
     </>

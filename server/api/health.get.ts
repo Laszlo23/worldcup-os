@@ -1,7 +1,8 @@
 import { defineHandler } from "nitro";
 import { txlineClient } from "@/server/services/txline/client";
-import { assertProductionSecrets, hasDatabase } from "@/server/config/env";
+import { assertProductionSecrets, hasDatabase, hasWebacy } from "@/server/config/env";
 import { maybeOne, query } from "@/server/db/postgres";
+import { jsonResponse } from "@/server/middleware/http";
 
 export default defineHandler(async () => {
   assertProductionSecrets();
@@ -40,7 +41,7 @@ export default defineHandler(async () => {
   const sseAgeMs = txline.lastSseAt ? Date.now() - new Date(txline.lastSseAt).getTime() : null;
   const workerHealthy = sseActive && (sseAgeMs === null || sseAgeMs < 120_000);
 
-  return {
+  return jsonResponse({
     status: txline.status === "healthy" && database ? "ok" : "degraded",
     timestamp: new Date().toISOString(),
     database,
@@ -62,5 +63,6 @@ export default defineHandler(async () => {
     },
     uptime: txline.lastSseAt ? "active" : fixturesSynced ? "synced" : "idle",
     fixtures: fixtureStats,
-  };
+    webacyConfigured: hasWebacy(),
+  });
 });

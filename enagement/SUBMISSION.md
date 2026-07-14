@@ -21,6 +21,8 @@ Core loop: Live match hub → vote on goal-triggered poll → claim on-chain mom
 TxLINE powers every score update and goal event through our shared ingestion worker. Poll outcomes resolve from real match_events (goals/corners), not manual admin.
 
 Demo video: REPLACE_WITH_YOUTUBE_URL
+
+Superteam Earn: Agents can discover live match opportunities via AgentX, submit verified on-chain predictions, and participate in the Superteam Earn agent economy with human claim for payouts.
 ```
 
 ## Link to live MVP

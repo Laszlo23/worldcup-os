@@ -6,11 +6,15 @@ SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519_wgsdex}"
 REMOTE_DIR="${DEPLOY_DIR:-/var/www/wmos-buildingculture}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+echo "[deploy] Building production bundle locally..."
+cd "$ROOT"
+NODE_ENV=production npm run build
+
+echo "[deploy] Syncing source + .output to server..."
 rsync -az --delete \
   --exclude node_modules \
   --exclude .git \
   --exclude target \
-  --exclude .output \
   --exclude .env \
   --exclude agentx \
   --exclude enagement \
@@ -19,8 +23,14 @@ rsync -az --delete \
   -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new" \
   "$ROOT/" "$HOST:$REMOTE_DIR/"
 
-ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_DIR && npm ci && npm run build && pm2 startOrRestart ecosystem.config.cjs && pm2 save && pm2 status worldcup-worker"
+echo "[deploy] Installing runtime deps + migrating DB + restarting PM2..."
+ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_DIR && set -a && [ -f ./.env ] && . ./.env; set +a && npm ci --omit=dev && npm run db:migrate && pm2 startOrRestart ecosystem.config.cjs && pm2 save && pm2 status worldcup-os worldcup-worker"
 
 ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_DIR && node scripts/verify-worker-health.mjs || true"
+
+echo "[deploy] Smoke check..."
+curl -sf "https://wmos.buildingcultureid.space/api/health" | head -c 120 || true
+echo ""
+curl -sfI "https://wmos.buildingcultureid.space/" | head -3 || true
 
 echo "Deployed to https://wmos.buildingcultureid.space"

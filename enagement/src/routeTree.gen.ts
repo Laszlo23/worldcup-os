@@ -9,13 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StickersRouteImport } from './routes/stickers'
 import { Route as StadiumRouteImport } from './routes/stadium'
 import { Route as RewardsRouteImport } from './routes/rewards'
 import { Route as PredictRouteImport } from './routes/predict'
 import { Route as PassportRouteImport } from './routes/passport'
 import { Route as MomentsRouteImport } from './routes/moments'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 
+const StickersRoute = StickersRouteImport.update({
+  id: '/stickers',
+  path: '/stickers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StadiumRoute = StadiumRouteImport.update({
   id: '/stadium',
   path: '/stadium',
@@ -46,6 +54,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +72,9 @@ export interface FileRoutesByFullPath {
   '/predict': typeof PredictRoute
   '/rewards': typeof RewardsRoute
   '/stadium': typeof StadiumRoute
+  '/stickers': typeof StickersRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +83,9 @@ export interface FileRoutesByTo {
   '/predict': typeof PredictRoute
   '/rewards': typeof RewardsRoute
   '/stadium': typeof StadiumRoute
+  '/stickers': typeof StickersRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +95,33 @@ export interface FileRoutesById {
   '/predict': typeof PredictRoute
   '/rewards': typeof RewardsRoute
   '/stadium': typeof StadiumRoute
+  '/stickers': typeof StickersRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/moments' | '/passport' | '/predict' | '/rewards' | '/stadium'
+    | '/'
+    | '/moments'
+    | '/passport'
+    | '/predict'
+    | '/rewards'
+    | '/stadium'
+    | '/stickers'
+    | '/legal/privacy'
+    | '/legal/terms'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/moments' | '/passport' | '/predict' | '/rewards' | '/stadium'
+  to:
+    | '/'
+    | '/moments'
+    | '/passport'
+    | '/predict'
+    | '/rewards'
+    | '/stadium'
+    | '/stickers'
+    | '/legal/privacy'
+    | '/legal/terms'
   id:
     | '__root__'
     | '/'
@@ -86,6 +130,9 @@ export interface FileRouteTypes {
     | '/predict'
     | '/rewards'
     | '/stadium'
+    | '/stickers'
+    | '/legal/privacy'
+    | '/legal/terms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,10 +142,20 @@ export interface RootRouteChildren {
   PredictRoute: typeof PredictRoute
   RewardsRoute: typeof RewardsRoute
   StadiumRoute: typeof StadiumRoute
+  StickersRoute: typeof StickersRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/stickers': {
+      id: '/stickers'
+      path: '/stickers'
+      fullPath: '/stickers'
+      preLoaderRoute: typeof StickersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stadium': {
       id: '/stadium'
       path: '/stadium'
@@ -141,6 +198,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -151,6 +222,9 @@ const rootRouteChildren: RootRouteChildren = {
   PredictRoute: PredictRoute,
   RewardsRoute: RewardsRoute,
   StadiumRoute: StadiumRoute,
+  StickersRoute: StickersRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

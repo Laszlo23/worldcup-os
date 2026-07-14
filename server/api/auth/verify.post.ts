@@ -4,6 +4,7 @@ import { verifyWalletSignature, extractDomainFromAuthMessage } from "@/server/se
 import { tryUpsertUser } from "@/server/repositories/matches";
 import { getUsdcBalance } from "@/server/services/auth";
 import { consumeNonce, extractNonceFromMessage } from "@/server/services/nonce-store";
+import { screenWallet } from "@/server/services/webacy-screening";
 import { createSessionToken, buildSessionCookie } from "@/server/services/session";
 import { isValidSolanaPubkey } from "@/server/lib/solana-pubkey";
 import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireMutationOrigin, isAllowedAuthDomain, isRequestSecure } from "@/server/middleware/http";
@@ -29,6 +30,11 @@ export default defineHandler(async (event) => {
   const nonce = extractNonceFromMessage(message);
   if (!nonce || !(await consumeNonce(pubkey, nonce))) {
     return errorResponse("Invalid or expired nonce — click Connect and sign again", 401);
+  }
+
+  const screening = await screenWallet(pubkey, "login");
+  if (!screening.allowed) {
+    return errorResponse(screening.reason, 403);
   }
 
   const user = await tryUpsertUser(pubkey, nickname);

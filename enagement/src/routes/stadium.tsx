@@ -3,22 +3,33 @@ import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { QrCode, Check, MapPin, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/matchmind/AppShell";
-import { useActiveMatch } from "@/lib/use-active-match";
+import { useActiveMatchState } from "@/lib/use-active-match";
 import { useAppStore } from "@/lib/store";
-import { apiFetch } from "@/lib/api/client";
-import { resolveWalletTxFns } from "@/lib/wallet/signing";
+import { apiFetch, ApiError } from "@/lib/api/client";
+import { resolveWalletTxFns, submitTransaction } from "@/lib/wallet/signing";
 import { Transaction, Connection } from "@solana/web3.js";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queries/hooks";
+import { decodeBase64 } from "@/lib/base64";
+import { prefetchMatchFeed } from "@/lib/prefetch-match";
+import { useWalletSigningReady } from "@/hooks/use-wallet-signing-ready";
 
 export const Route = createFileRoute("/stadium")({
+  loader: async ({ context }) => {
+    try {
+      await prefetchMatchFeed(context.queryClient);
+    } catch {
+      // Client retry via queries
+    }
+  },
   component: StadiumScreen,
 });
 
 function StadiumScreen() {
-  const match = useActiveMatch();
+  const { match } = useActiveMatchState();
   const wallet = useAppStore((s) => s.wallet);
+  const signingReady = useWalletSigningReady();
   const [verified, setVerified] = useState(false);
   const [loading, setLoading] = useState(false);
   const qc = useQueryClient();
@@ -28,18 +39,21 @@ function StadiumScreen() {
       toast.error("Connect wallet first");
       return;
     }
+    if (!signingReady) {
+      toast.message("Wallet preparing", { description: "One moment — then try again." });
+      return;
+    }
     if (!match) return;
     setLoading(true);
     try {
+      const txFns = await resolveWalletTxFns();
+      const connection = new Connection(import.meta.env.VITE_SOLANA_RPC_URL ?? "https://api.devnet.solana.com");
       const built = await apiFetch<{ transaction: string }>("/api/engagement/stadium/verify", {
         method: "POST",
         body: JSON.stringify({ matchId: match.id, action: "build" }),
       });
-      const txFns = await resolveWalletTxFns();
-      const tx = Transaction.from(Buffer.from(built.transaction, "base64"));
-      const signed = await txFns.signTransaction(tx);
-      const connection = new Connection(import.meta.env.VITE_SOLANA_RPC_URL ?? "https://api.devnet.solana.com");
-      const sig = await txFns.sendTransaction!(signed, connection);
+      const tx = Transaction.from(decodeBase64(built.transaction));
+      const sig = await submitTransaction(tx, txFns, connection);
       const res = await apiFetch<{ explorerUrl?: string }>("/api/engagement/stadium/verify", {
         method: "POST",
         body: JSON.stringify({ matchId: match.id, txSignature: sig }),
@@ -52,7 +66,11 @@ function StadiumScreen() {
       });
       void qc.invalidateQueries({ queryKey: queryKeys.passport });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Verification failed");
+      if (err instanceof ApiError && err.status === 401) {
+        toast.error("Session expired — reconnect wallet");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Verification failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -77,11 +95,11 @@ function StadiumScreen() {
         <button
           type="button"
           onClick={() => void verify()}
-          disabled={loading || verified}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-sm font-bold uppercase tracking-wider text-primary-foreground disabled:opacity-60"
+          disabled={loading || verified || (wallet.connected && !signingReady)}
+          className="mt-6 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-sm font-bold uppercase tracking-wider text-primary-foreground active:scale-[0.98] disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : verified ? <Check className="size-4" /> : null}
-          {verified ? "Verified on-chain" : loading ? "Signing…" : "I'm at the Stadium"}
+          {verified ? "Verified on-chain" : loading ? "Signing…" : !signingReady && wallet.connected ? "Preparing wallet…" : "I'm at the Stadium"}
         </button>
 
         <AnimatePresence>

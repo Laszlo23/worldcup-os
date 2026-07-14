@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useLeaderboard } from "@/lib/queries/hooks";
+import { apiFetch } from "@/lib/api/client";
+import { useQuery } from "@tanstack/react-query";
+import { ShareActions } from "@/components/social/share-actions";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, TrendingUp, Flame } from "lucide-react";
@@ -15,12 +18,17 @@ function Leaderboard() {
   const [tab, setTab] = useState("all");
   const period = tab === "week" ? "weekly" : "all_time";
   const { data: leaderboard = [] } = useLeaderboard(period);
+  const { data: superfan } = useQuery({
+    queryKey: ["superfan-leaderboard"],
+    queryFn: () => apiFetch<{ rows: { rank: number; wallet: string; points: number; nickname: string | null }[] }>("/api/superfan/leaderboard"),
+  });
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-display font-bold">Leaderboard</h1>
-        <p className="text-muted-foreground mt-1">Top predictors, ranked by profit.</p>
+        <p className="text-muted-foreground mt-1">Top predictors and unified Superfan Points.</p>
+        <ShareActions app="wmos" contentType="leaderboard" contentId={period} title="World Cup OS Leaderboard" className="mt-3" />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -73,6 +81,20 @@ function Leaderboard() {
       <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
         <TrendingUp className="h-3 w-3" /> Rankings update in real time as TxLINE settles markets.
       </p>
+
+      {superfan?.rows?.length ? (
+        <Card className="glass p-6">
+          <h2 className="text-lg font-display font-bold mb-4">Superfan Points (all apps)</h2>
+          <div className="space-y-2">
+            {superfan.rows.slice(0, 10).map((r) => (
+              <div key={r.wallet} className="flex items-center justify-between text-sm border-b border-border/50 pb-2 last:border-0">
+                <span className="font-mono">#{r.rank} {r.nickname ?? `${r.wallet.slice(0, 4)}…${r.wallet.slice(-4)}`}</span>
+                <span className="font-bold text-gold">{r.points.toLocaleString()} pts</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
     </div>
   );
 }

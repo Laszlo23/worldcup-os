@@ -2,6 +2,17 @@ import { Connection, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { decodeBase64 } from "../base64";
 import { apiFetch } from "../api/client";
 
+async function waitForConfirmedTx(connection: Connection, signature: string): Promise<void> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  const confirmation = await connection.confirmTransaction(
+    { signature, blockhash, lastValidBlockHeight },
+    "confirmed",
+  );
+  if (confirmation.value.err) {
+    throw new Error("Transaction failed on-chain");
+  }
+}
+
 export async function placePredictionOnChain(params: {
   marketExternalId: string;
   optionExternalId: string;
@@ -30,8 +41,9 @@ export async function placePredictionOnChain(params: {
   } else {
     const signed = await params.signTransaction(tx);
     signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
-    await connection.confirmTransaction(signature, "confirmed");
   }
+
+  await waitForConfirmedTx(connection, signature);
 
   return {
     ...(await apiFetch<{ prediction: import("../mock/types").Prediction }>("/api/predictions/place", {

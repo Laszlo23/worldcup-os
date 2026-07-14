@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import type { Market, MarketOutcome, Match } from "@/lib/mock/types";
 import { pageTitle } from "@/lib/seo";
 import { hasRealOdds } from "@/lib/data-truth";
+import { ShareActions } from "@/components/social/share-actions";
 
 export const Route = createFileRoute("/_app/matches/$id")({
   loader: async ({ context, params }) => {
@@ -78,6 +79,14 @@ function MatchDetail() {
       <Link to="/matches" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to matches
       </Link>
+
+      <ShareActions
+        app="wmos"
+        contentType="match"
+        contentId={match.id}
+        title={`${match.home.name} vs ${match.away.name} — World Cup OS`}
+        className="mt-2"
+      />
 
       {isFetching && (match.status === "live" || match.status === "halftime") && (
         <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Refreshing live data…</p>

@@ -72,6 +72,30 @@ export async function syncFixturesFromTxline(): Promise<number> {
   return count;
 }
 
+/** Ensure every scheduled fixture has DB markets (TxLINE sync can miss fixtures already in DB). */
+export async function backfillMissingMarkets(matchExternalId?: string): Promise<number> {
+  if (!hasDatabase()) return 0;
+
+  const rows = await query<{ external_id: string; id: string }>(
+    `
+      select mt.external_id, mt.id
+      from matches mt
+      left join markets m on m.match_id = mt.id
+      where mt.status = 'scheduled'
+        and ($1::text is null or mt.external_id = $1)
+      group by mt.external_id, mt.id
+      having count(m.id) = 0
+      order by mt.kickoff_at asc nulls last
+    `,
+    [matchExternalId ?? null],
+  );
+
+  for (const row of rows) {
+    await createMarketsForMatch(row.external_id, row.id);
+  }
+  return rows.length;
+}
+
 export async function createMarketsForMatch(matchExternalId: string, matchUuid?: string) {
   if (!hasDatabase()) return;
   let matchId = matchUuid;
@@ -158,7 +182,10 @@ export async function closeMarketsForMatch(matchExternalId: string): Promise<voi
       update markets m
       set closed = true, updated_at = now()
       from matches mt
-      where m.match_id = mt.id and mt.external_id = $1 and m.closed = false
+      where m.match_id = mt.id
+        and mt.external_id = $1
+        and m.closed = false
+        and m.type not like 'live_%'
     `,
     [matchExternalId],
   );
@@ -172,7 +199,7 @@ export async function closeExpiredMarkets(): Promise<number> {
       select m.id, m.external_id, mt.external_id as match_external_id
       from markets m
       join matches mt on mt.id = m.match_id
-      where m.closed = false and m.closes_at <= $1
+      where m.closed = false and m.closes_at <= $1 and m.type not like 'live_%'
     `,
     [now],
   );
@@ -399,6 +426,15 @@ export async function processScoreUpdate(
     await closeMarketsForMatch(String(match.external_id));
   }
 
+  if (status === "live" || status === "halftime") {
+    try {
+      const { syncLiveMarketsForMatch } = await import("./live-markets");
+      await syncLiveMarketsForMatch(String(match.id), String(match.external_id), status);
+    } catch (err) {
+      console.error("live markets sync:", err);
+    }
+  }
+
   const eventType = options?.stateOnly ? "" : String(payload.eventType ?? payload.type ?? "");
   if (eventType) {
     const txlineSeq = Number(payload.seq ?? 0);
@@ -448,6 +484,21 @@ export async function processScoreUpdate(
         });
       } catch (err) {
         console.error("engagement goal hook:", err);
+      }
+      try {
+        const { settleLiveMarketsOnEvent } = await import("./settlement-live");
+        await settleLiveMarketsOnEvent(String(match.id), "goal");
+      } catch (err) {
+        console.error("live market goal settle:", err);
+      }
+    }
+
+    if (mapped === "penalty" || mapped === "yellow" || mapped === "red") {
+      try {
+        const { settleLiveMarketsOnEvent } = await import("./settlement-live");
+        await settleLiveMarketsOnEvent(String(match.id), mapped);
+      } catch (err) {
+        console.error("live market event settle:", err);
       }
     }
   }

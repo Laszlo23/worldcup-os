@@ -120,7 +120,15 @@ function FaqPage() {
           ))}
         </div>
 
-        <div className="text-center pt-4">
+        <div className="text-center pt-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+            <Link to="/legal/terms" className="hover:text-foreground underline-offset-4 hover:underline">
+              Terms of Service
+            </Link>
+            <Link to="/legal/privacy" className="hover:text-foreground underline-offset-4 hover:underline">
+              Privacy Policy
+            </Link>
+          </div>
           <Link
             to="/matches"
             className="inline-flex items-center rounded-md bg-gradient-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"

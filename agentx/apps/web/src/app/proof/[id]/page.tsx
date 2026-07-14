@@ -11,8 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { truncateHash } from "@/lib/utils";
 import { useWalletStore } from "@/lib/store/wallet";
+import { useWalletSigning } from "@/lib/wallet/use-wallet-signing";
 import { sendBase64Transaction } from "@/lib/wallet/signing";
 import { useState } from "react";
+import { ShareActions } from "@/components/social/share-actions";
 import { toast } from "sonner";
 
 export default function ProofPage() {
@@ -21,7 +23,7 @@ export default function ProofPage() {
   const { data, refetch } = useQuery({ queryKey: ["prediction", id], queryFn: () => api.prediction(id) });
   const pred = data?.prediction as Record<string, unknown> | undefined;
   const wallet = useWalletStore((s) => s.wallet);
-  const walletTxFns = useWalletStore((s) => s.walletTxFns);
+  const { ensureReady } = useWalletSigning();
   const [signing, setSigning] = useState(false);
   const [userSigned, setUserSigned] = useState(false);
 
@@ -49,6 +51,8 @@ export default function ProofPage() {
       <Link href="/portfolio" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
+
+      <ShareActions contentType="proof" contentId={id} title={`On-chain AI prediction proof ${id}`} className="mb-4" />
 
       <GlassCard className="purple-glow mb-4 text-center">
         <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple/20">
@@ -97,17 +101,14 @@ export default function ProofPage() {
           <p className="mb-3 text-sm text-muted-foreground">Sign a memo transaction to anchor this prediction on Solana devnet.</p>
           <Button
             className="w-full gap-2"
-            disabled={signing || !walletTxFns}
+            disabled={signing}
             onClick={() => {
-              if (!walletTxFns) {
-                toast.error("Reconnect wallet to sign");
-                return;
-              }
               setSigning(true);
               void (async () => {
                 try {
+                  const txFns = await ensureReady();
                   const build = await api.certificateBuild(id);
-                  const sig = await sendBase64Transaction(build.transaction, walletTxFns);
+                  const sig = await sendBase64Transaction(build.transaction, txFns);
                   await api.certificateSubmit(id, sig);
                   setUserSigned(true);
                   toast.success("Certificate anchored on-chain");

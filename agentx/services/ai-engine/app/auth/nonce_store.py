@@ -1,6 +1,9 @@
 import secrets
 import time
 from typing import Dict
+from urllib.parse import urlparse
+
+from app.config import settings
 
 _nonces: Dict[str, tuple[str, float]] = {}
 _sessions: Dict[str, str] = {}
@@ -8,9 +11,17 @@ FAUCET_COOLDOWN: Dict[str, float] = {}
 NONCE_TTL = 300
 
 
+def _auth_domain() -> str:
+    try:
+        host = urlparse(settings.app_url).hostname
+        return host or "agentx.buildingcultureid.space"
+    except Exception:
+        return "agentx.buildingcultureid.space"
+
+
 def create_nonce(pubkey: str) -> tuple[str, str]:
     nonce = secrets.token_hex(16)
-    domain = "agentx.buildingcultureid.space"
+    domain = _auth_domain()
     message = (
         f"TxLINE AI Trader wants you to sign in with your Solana account:\n"
         f"{pubkey}\n\n"

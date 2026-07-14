@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { QrCode } from "lucide-react";
 import { BottomNav } from "./BottomNav";
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet";
+import { DevnetBanner } from "@/components/site/devnet-banner";
+import { PartnerFooter } from "@/components/site/partner-footer";
 import { SoccerBackdrop } from "@/components/soccer/soccer-backdrop";
 import { useAppStore } from "@/lib/store";
 import { usePassport } from "@/lib/queries/hooks";
@@ -20,14 +22,16 @@ export function AppShell({
   backdropVariant?: SoccerBackdropVariant;
 }) {
   const wallet = useAppStore((s) => s.wallet);
+  const storeXp = useAppStore((s) => s.xp);
   const { data: passportData } = usePassport(wallet.connected);
-  const xp = passportData?.passport.xp ?? useAppStore((s) => s.xp);
+  const xp = passportData?.passport.xp ?? storeXp;
 
   return (
     <div className="min-h-screen w-full text-foreground">
+      <DevnetBanner />
       <SoccerBackdrop variant={backdropVariant} />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-[480px] flex-col">
-        <header className="sticky top-0 z-30 mm-glass border-b border-border">
+        <header className="sticky top-0 z-30 mm-glass border-b border-border pt-[env(safe-area-inset-top)]">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="grid size-9 place-items-center rounded-lg bg-primary/15 ring-1 ring-primary/30">
@@ -58,6 +62,7 @@ export function AppShell({
           </div>
         </header>
         <main className="flex-1 pb-28">{children}</main>
+        <PartnerFooter compact />
         <BottomNav />
       </div>
     </div>

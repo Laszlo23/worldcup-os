@@ -318,17 +318,65 @@ async function checkStream() {
 }
 
 async function checkSecurity() {
-  const { res, body } = await fetchJson("/api/replay/settle", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ matchExternalId: "fx-test", fixtureId: 1 }),
-  });
+  const probes = [
+    {
+      id: "security_settle",
+      name: "Settlement endpoint locked",
+      path: "/api/replay/settle",
+      body: { matchExternalId: "fx-test", fixtureId: 1 },
+    },
+    {
+      id: "security_worker_tick",
+      name: "Worker tick locked",
+      path: "/api/workers/tick",
+      body: {},
+    },
+    {
+      id: "security_internal_award",
+      name: "Internal superfan award locked",
+      path: "/api/superfan/internal/award",
+      body: {
+        walletPubkey: "6XitbmLNPGzsvGo6aNTbMG3uvwqdbmssy8g4zhbJrUTr",
+        source: "share",
+        app: "wmos",
+        points: 1,
+        idempotencyKey: "readiness-probe-award",
+      },
+    },
+    {
+      id: "security_admin",
+      name: "Admin dashboard locked",
+      path: "/api/admin",
+      body: null,
+      method: "GET",
+    },
+  ];
+
+  for (const probe of probes) {
+    const init = probe.method === "GET"
+      ? { method: "GET" }
+      : {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(probe.body),
+        };
+    const { res } = await fetchJson(probe.path, init);
+    record(
+      probe.id,
+      probe.name,
+      res.status === 403 || res.status === 401 ? "pass" : "fail",
+      res.status === 403 || res.status === 401 ? `HTTP ${res.status}` : `HTTP ${res.status} (expected 401/403)`,
+    );
+  }
+
+  const healthRes = await fetch(`${BASE_URL}/api/health`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const required = ["X-Content-Type-Options", "X-Frame-Options", "Content-Security-Policy"];
+  const missing = required.filter((h) => !healthRes.headers.get(h));
   record(
-    "security_settle",
-    "Settlement endpoint locked",
-    res.status === 403 || res.status === 401 ? "pass" : "fail",
-    res.status === 403 ? "Forbidden without admin/worker secret" : `HTTP ${res.status}`,
-    body,
+    "security_headers",
+    "Security headers present",
+    missing.length === 0 ? "pass" : "fail",
+    missing.length === 0 ? required.join(", ") : `missing: ${missing.join(", ")}`,
   );
 }
 

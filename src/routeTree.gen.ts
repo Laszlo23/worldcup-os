@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReplayRouteImport } from './routes/_app.replay'
@@ -40,6 +42,16 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -134,6 +146,8 @@ export interface FileRoutesByFullPath {
   '/replay': typeof AppReplayRoute
   '/settings': typeof AppSettingsRoute
   '/tasks': typeof AppTasksRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/matches/$id': typeof AppMatchesIdRoute
   '/matches/': typeof AppMatchesIndexRoute
 }
@@ -152,6 +166,8 @@ export interface FileRoutesByTo {
   '/replay': typeof AppReplayRoute
   '/settings': typeof AppSettingsRoute
   '/tasks': typeof AppTasksRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/matches/$id': typeof AppMatchesIdRoute
   '/matches': typeof AppMatchesIndexRoute
 }
@@ -173,6 +189,8 @@ export interface FileRoutesById {
   '/_app/replay': typeof AppReplayRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/tasks': typeof AppTasksRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/_app/matches/$id': typeof AppMatchesIdRoute
   '/_app/matches/': typeof AppMatchesIndexRoute
 }
@@ -194,6 +212,8 @@ export interface FileRouteTypes {
     | '/replay'
     | '/settings'
     | '/tasks'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/matches/$id'
     | '/matches/'
   fileRoutesByTo: FileRoutesByTo
@@ -212,6 +232,8 @@ export interface FileRouteTypes {
     | '/replay'
     | '/settings'
     | '/tasks'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/matches/$id'
     | '/matches'
   id:
@@ -232,6 +254,8 @@ export interface FileRouteTypes {
     | '/_app/replay'
     | '/_app/settings'
     | '/_app/tasks'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/_app/matches/$id'
     | '/_app/matches/'
   fileRoutesById: FileRoutesById
@@ -240,6 +264,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   FaqRoute: typeof FaqRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -263,6 +289,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/tasks': {
@@ -425,6 +465,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   FaqRoute: FaqRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

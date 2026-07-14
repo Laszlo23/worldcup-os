@@ -11,6 +11,8 @@ import type { Match } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+const WMOS_ORIGIN = import.meta.env.VITE_WMOS_URL ?? "https://wmos.buildingcultureid.space";
+
 const STAKES = [1, 5, 10, 25];
 
 export function UsdcPredictPanel({ match }: { match: Match }) {
@@ -44,7 +46,20 @@ export function UsdcPredictPanel({ match }: { match: Match }) {
   });
 
   if (!market) {
-    return <p className="text-sm text-muted-foreground px-4">Winner market syncing…</p>;
+    const wmosUrl = `${WMOS_ORIGIN}/matches/${match.id}`;
+    return (
+      <section className="mx-4 mt-4 rounded-2xl border border-border bg-card p-4">
+        <p className="text-sm text-muted-foreground">Winner market syncing for this fixture…</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          USDC predictions use the same WMOS escrow markets and wallet session.
+        </p>
+        <Button asChild variant="outline" className="mt-4 w-full">
+          <a href={wmosUrl} target="_blank" rel="noreferrer">
+            Open on WMOS
+          </a>
+        </Button>
+      </section>
+    );
   }
 
   return (

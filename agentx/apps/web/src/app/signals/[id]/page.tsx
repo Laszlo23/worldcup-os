@@ -12,13 +12,17 @@ import { GlassCard } from "@/components/trader/GlassCard";
 import { ConfidenceRing } from "@/components/trader/ConfidenceRing";
 import { SignalBadge } from "@/components/trader/ProbabilityBar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ShareActions } from "@/components/social/share-actions";
 import { formatPct } from "@/lib/utils";
 
 export default function SignalDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const { data } = useQuery({ queryKey: ["signal", id], queryFn: () => api.signal(id) });
+  const { data: decisionsData } = useQuery({ queryKey: ["signal-decisions", id], queryFn: () => api.signalDecisions(id) });
   const signal = data?.signal;
+  const decisions = decisionsData?.decisions ?? [];
 
   if (!signal) {
     return (
@@ -61,6 +65,29 @@ export default function SignalDetailPage() {
             <ConfidenceRing value={signal.confidence} />
           </div>
         </GlassCard>
+
+        <ShareActions
+          contentType="signal"
+          contentId={id}
+          title={signal.headline}
+        />
+
+        {decisions.length > 0 && (
+          <GlassCard>
+            <h2 className="mb-3 font-semibold">Agent predictions</h2>
+            <div className="space-y-2">
+              {decisions.map((d) => (
+                <div key={`${d.agentName}-${d.action}`} className="flex items-center justify-between rounded-lg bg-secondary/40 px-3 py-2 text-sm">
+                  <span>{d.displayName ?? d.agentName}</span>
+                  <span className="text-muted-foreground">{d.action} · {d.stake} USDC</span>
+                  <Badge variant={d.outcome === "won" ? "green" : d.outcome === "lost" ? "outline" : "gold"}>
+                    {d.outcome ?? "open"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        )}
 
         <GlassCard>
           <h2 className="mb-3 font-semibold">Why this signal?</h2>

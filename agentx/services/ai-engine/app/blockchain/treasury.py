@@ -1,10 +1,10 @@
-import base58
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 
 from app.config import settings
 from app.blockchain.spl_helpers import get_associated_token_address
+from app.blockchain.keypair_loader import load_keypair_from_secret
 
 TREASURY_MIN_USDC = 10.0
 PREFUND_AMOUNT = 500.0
@@ -12,13 +12,7 @@ _treasuries: dict[str, Keypair] = {}
 
 
 def _load_keypair(secret: str) -> Keypair | None:
-    if not secret:
-        return None
-    try:
-        raw = base58.b58decode(secret)
-        return Keypair.from_bytes(raw)
-    except Exception:
-        return None
+    return load_keypair_from_secret(secret)
 
 
 def get_treasury_keypair(agent_name: str) -> Keypair:
@@ -44,7 +38,9 @@ def get_usdc_mint() -> Pubkey:
 
 def get_settlement_authority() -> Keypair | None:
     secret = settings.settlement_authority_secret or settings.anchor_authority_secret
-    return _load_keypair(secret) if secret else None
+    if not secret:
+        return None
+    return load_keypair_from_secret(secret)
 
 
 async def get_treasury_balance(agent_name: str) -> float:

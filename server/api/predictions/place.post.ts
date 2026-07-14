@@ -4,6 +4,8 @@ import { hasDatabase } from "@/server/config/env";
 import { maybeOne, one, query, withTransaction } from "@/server/db/postgres";
 import { verifyPlacePredictionTx } from "@/server/blockchain/verify";
 import { insertLiveEvent } from "@/server/repositories/matches";
+import { loadMarketBettingGate } from "@/server/services/market-betting-gate";
+import { screenWallet } from "@/server/services/webacy-screening";
 import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireMutationOrigin } from "@/server/middleware/http";
 
 export default defineHandler(async (event) => {
@@ -12,6 +14,9 @@ export default defineHandler(async (event) => {
 
   const wallet = await requireSession(event);
   if (wallet instanceof Response) return wallet;
+
+  const screening = await screenWallet(wallet, "deposit");
+  if (!screening.allowed) return errorResponse(screening.reason, 403);
 
   const body = await readJsonBody<unknown>(event);
   const parsed = placePredictionSchema.safeParse(body);
@@ -47,25 +52,25 @@ export default defineHandler(async (event) => {
     id: string;
     external_id: string;
     match_id: string;
+    type: string;
     closed: boolean;
     match_external_id: string;
     match_status: string;
     kickoff_at: string | null;
+    closes_at: string | null;
   }>(
     `
-      select m.id, m.external_id, m.match_id, m.closed, mt.external_id as match_external_id, mt.status as match_status, mt.kickoff_at
+      select m.id, m.external_id, m.match_id, m.type, m.closed, m.closes_at,
+             mt.external_id as match_external_id, mt.status as match_status, mt.kickoff_at
       from markets m
       join matches mt on mt.id = m.match_id
       where m.external_id = $1
     `,
     [parsed.data.marketExternalId],
   );
-  if (!market || market.closed) return errorResponse("Market closed", 400);
-  if (market.match_status !== "scheduled") return errorResponse("Predictions only open for upcoming fixtures", 400);
-  if (market.kickoff_at) {
-    const closesAt = new Date(market.kickoff_at).getTime() - 5 * 60_000;
-    if (Date.now() >= closesAt) return errorResponse("Predictions closed — kickoff window passed", 400);
-  }
+  if (!market) return errorResponse("Market not found", 404);
+  const gate = await loadMarketBettingGate(parsed.data.marketExternalId);
+  if (!gate.ok) return errorResponse(gate.reason, 400);
 
   const option = await maybeOne<{ id: string; label: string; price: string | number }>(
     "select id, label, price from market_options where market_id = $1 and external_id = $2",

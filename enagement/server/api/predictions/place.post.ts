@@ -4,6 +4,7 @@ import { hasDatabase } from "@shared/server/config/env";
 import { maybeOne, one, query, withTransaction } from "@shared/server/db/postgres";
 import { verifyPlacePredictionTx } from "@shared/server/blockchain/verify";
 import { insertLiveEvent } from "@shared/server/repositories/matches";
+import { screenWallet } from "@shared/server/services/webacy-screening";
 import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireMutationOrigin } from "@shared/server/middleware/http";
 
 export default defineHandler(async (event) => {
@@ -12,6 +13,9 @@ export default defineHandler(async (event) => {
 
   const wallet = await requireSession(event);
   if (wallet instanceof Response) return wallet;
+
+  const screening = await screenWallet(wallet, "deposit");
+  if (!screening.allowed) return errorResponse(screening.reason, 403);
 
   const body = await readJsonBody<unknown>(event);
   const parsed = placePredictionSchema.safeParse(body);

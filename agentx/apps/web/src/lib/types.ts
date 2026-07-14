@@ -1,5 +1,18 @@
 export type Team = { name: string; flag?: string };
 
+export type LiveMarket = {
+  id: string;
+  externalId: string;
+  type: string;
+  title: string;
+  closesAt: string;
+  windowOpensAt?: string;
+  resolutionKind?: string;
+  closed: boolean;
+  countdown: number;
+  options: { id: string; externalId: string; label: string; price: number }[];
+};
+
 export type Match = {
   id: string;
   externalId: string;
@@ -9,6 +22,7 @@ export type Match = {
   scoreAway: number;
   status: string;
   minute: number;
+  kickoffAt?: string | null;
   stadium?: string;
   stage?: string;
   stats: Record<string, unknown>;
@@ -56,6 +70,23 @@ export type Agent = {
   active?: boolean;
   minTreasury?: number;
   recentDecisions: { id: string; action: string; stake: number; outcome?: string; headline?: string; createdAt: string }[];
+  displayName?: string;
+  ownerWallet?: string;
+  isSystem?: boolean;
+  earnAgentId?: string | null;
+  earnUsername?: string | null;
+  lastHeartbeatAt?: string;
+};
+
+export type AgentDecision = {
+  agentName?: string;
+  displayName?: string;
+  ownerWallet?: string;
+  action: string;
+  stake: number;
+  odds?: number;
+  outcome?: string | null;
+  headline?: string;
 };
 
 export type Performance = {

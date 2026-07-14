@@ -83,7 +83,7 @@ async def build_user_certificate_tx(user_pubkey: str, memo: str) -> str:
             data=memo[:566].encode("utf-8"),
         )
         msg = Message.new_with_blockhash([ix], user, blockhash)
-        tx = Transaction([], msg, blockhash)
+        tx = Transaction.new_unsigned(msg)
         return base64.b64encode(bytes(tx)).decode()
     finally:
         await client.close()
@@ -91,10 +91,15 @@ async def build_user_certificate_tx(user_pubkey: str, memo: str) -> str:
 
 async def verify_user_memo_tx(tx_signature: str, user_pubkey: str, expected_prefix: str) -> bool:
     from solana.rpc.async_api import AsyncClient
+    from app.blockchain.spl_helpers import parse_tx_signature
 
     client = AsyncClient(settings.solana_rpc_url)
     try:
-        tx = await client.get_transaction(tx_signature, encoding="json", max_supported_transaction_version=0)
+        tx = await client.get_transaction(
+            parse_tx_signature(tx_signature),
+            encoding="json",
+            max_supported_transaction_version=0,
+        )
         if not tx.value:
             return False
         meta = tx.value.transaction.meta
@@ -111,18 +116,17 @@ async def verify_user_memo_tx(tx_signature: str, user_pubkey: str, expected_pref
 
 async def _submit_memo_tx(memo: str) -> tuple[str, str]:
     """Submit real Solana memo tx when authority secret is configured."""
-    import base58
-    from solders.keypair import Keypair
     from solders.pubkey import Pubkey
-    from solders.system_program import ID as SYSTEM_PROGRAM_ID
     from solders.instruction import Instruction, AccountMeta
     from solders.transaction import Transaction
     from solders.message import Message
     from solana.rpc.async_api import AsyncClient
+    from app.blockchain.keypair_loader import load_keypair_from_secret
 
     MEMO_PROGRAM_ID = Pubkey.from_string("MemoSq4gqABAXKb96qnH8TysNcWxMyWBqeybbncbhKi")
-    secret = base58.b58decode(settings.anchor_authority_secret)
-    kp = Keypair.from_bytes(secret)
+    kp = load_keypair_from_secret(settings.anchor_authority_secret)
+    if not kp:
+        raise ValueError("Invalid anchor authority secret")
     client = AsyncClient(settings.solana_rpc_url)
     try:
         resp = await client.get_latest_blockhash()

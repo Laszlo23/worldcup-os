@@ -69,7 +69,7 @@ export function OracleCommandCenter() {
       </header>
 
       {/* Mobile: tabbed panels */}
-      <div className="lg:hidden">
+      <div className="md:hidden">
         <Tabs value={mobileTab} onValueChange={setMobileTab}>
           <TabsList className="grid w-full grid-cols-3 h-11">
             <TabsTrigger value="pipeline" className="text-xs sm:text-sm">Pipeline</TabsTrigger>
@@ -97,12 +97,12 @@ export function OracleCommandCenter() {
       </div>
 
       {/* Desktop: three-column layout */}
-      <div className="hidden lg:grid lg:grid-cols-12 gap-4 min-h-[calc(100vh-12rem)]">
-        <Card className="terminal-panel neon-edge-sm p-4 lg:col-span-3 border-0">
+      <div className="hidden md:grid md:grid-cols-12 gap-4 min-h-[calc(100vh-12rem)]">
+        <Card className="terminal-panel neon-edge-sm p-4 md:col-span-3 border-0">
           <PipelineViz activeIndex={pipelineIndex} />
         </Card>
 
-        <Card className="terminal-panel neon-edge-sm p-4 lg:col-span-6 flex flex-col border-0">
+        <Card className="terminal-panel neon-edge-sm p-4 md:col-span-6 flex flex-col border-0">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
             <span className="text-[10px] uppercase tracking-widest text-primary font-semibold">TXLINE LIVE STREAM</span>
             <span className="text-[10px] text-muted-foreground">{timelineEvents.length} events</span>
@@ -110,7 +110,7 @@ export function OracleCommandCenter() {
           <EventTimeline events={timelineEvents} />
         </Card>
 
-        <Card className="terminal-panel neon-edge-sm p-4 lg:col-span-3 border-0">{statsPanel}</Card>
+        <Card className="terminal-panel neon-edge-sm p-4 md:col-span-3 border-0">{statsPanel}</Card>
       </div>
     </div>
   );

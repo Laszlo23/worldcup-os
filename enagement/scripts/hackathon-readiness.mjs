@@ -56,6 +56,42 @@ async function main() {
     record(`page_${route}`, `Page ${route}`, page.ok ? "pass" : "fail", `HTTP ${page.status}`);
   }
 
+  const settle = await fetch(`${BASE_URL}/api/replay/settle`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ matchExternalId: "fx-test", fixtureId: 1 }),
+    signal: AbortSignal.timeout(15000),
+  });
+  record(
+    "security_settle",
+    "Settlement endpoint locked",
+    settle.status === 403 || settle.status === 401 ? "pass" : "fail",
+    `HTTP ${settle.status}`,
+  );
+
+  const workerTick = await fetch(`${BASE_URL}/api/workers/tick`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+    signal: AbortSignal.timeout(15000),
+  });
+  record(
+    "security_worker_tick",
+    "Worker tick locked",
+    workerTick.status === 403 || workerTick.status === 401 ? "pass" : "fail",
+    `HTTP ${workerTick.status}`,
+  );
+
+  const healthRes = await fetch(`${BASE_URL}/api/health`, { signal: AbortSignal.timeout(15000) });
+  const required = ["X-Content-Type-Options", "X-Frame-Options", "Content-Security-Policy"];
+  const missing = required.filter((h) => !healthRes.headers.get(h));
+  record(
+    "security_headers",
+    "Security headers",
+    missing.length === 0 ? "pass" : "warn",
+    missing.length === 0 ? required.join(", ") : `missing ${missing.join(", ")}`,
+  );
+
   const fails = report.checks.filter((c) => c.status === "fail").length;
   report.ready = fails === 0;
   const md = [

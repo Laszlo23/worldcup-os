@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAppStore } from "../store";
 import { refreshWalletSession } from "./auth";
 import { getPhantomProvider } from "./phantom-connect";
+import { getOkxProvider } from "./injected-wallet";
 
 /** Restore HTTP session cookie into client wallet state (survives page refresh). */
 export function WalletSessionRestore() {
@@ -17,13 +18,22 @@ export function WalletSessionRestore() {
 
       restoreWalletSession(session.wallet, session.balance);
 
-      const provider = getPhantomProvider();
-      if (!provider || provider.isConnected) return;
+      const phantom = getPhantomProvider();
+      if (phantom && !phantom.isConnected) {
+        try {
+          await phantom.connect({ onlyIfTrusted: true });
+        } catch {
+          // User can reconnect manually
+        }
+      }
 
-      try {
-        await provider.connect({ onlyIfTrusted: true });
-      } catch {
-        // User can reconnect manually — session alone is not enough to sign txs
+      const okx = getOkxProvider();
+      if (okx && !okx.isConnected) {
+        try {
+          await okx.connect({ onlyIfTrusted: true });
+        } catch {
+          // User can reconnect manually
+        }
       }
     })();
   }, [wallet.connected, restoreWalletSession]);

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { COMMUNITY_TASKS, type TaskFilter } from "@/lib/mock/tasks";
 import { FeaturedTask } from "./featured-task";
 import { TaskCard } from "./task-card";
 import { useTasksStore } from "@/lib/store/tasks";
 import { useAppStore } from "@/lib/store";
-import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { ShareActions } from "@/components/social/share-actions";
 
 const FILTERS: { id: TaskFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -17,11 +17,17 @@ const FILTERS: { id: TaskFilter; label: string }[] = [
 export function TaskBoard() {
   const [filter, setFilter] = useState<TaskFilter>("all");
   const wallet = useAppStore((s) => s.wallet);
-  const { completedIds, setWalletScope } = useTasksStore();
+  const { completedIds, setWalletScope, syncFromServer } = useTasksStore();
 
   useEffect(() => {
     setWalletScope(wallet.address || "anonymous");
   }, [wallet.address, setWalletScope]);
+
+  useEffect(() => {
+    if (wallet.connected && wallet.address) {
+      void syncFromServer(wallet.address);
+    }
+  }, [wallet.connected, wallet.address, syncFromServer]);
 
   const featured = COMMUNITY_TASKS.find((t) => t.featured)!;
   const filtered = COMMUNITY_TASKS.filter((t) => !t.featured && (filter === "all" || t.category === filter));
@@ -39,6 +45,7 @@ export function TaskBoard() {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="font-mono text-gold border-gold/40">{totalPoints} PTS earned</Badge>
           <Badge variant="outline">{completedCount} / {COMMUNITY_TASKS.length} done</Badge>
+          <ShareActions app="wmos" contentType="tasks" contentId="board" title="World Cup OS Community Tasks" />
         </div>
       </div>
 

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="24" fill="#431407"/>
+  <path d="M100 50 L115 95 L165 95 L125 122 L140 168 L100 140 L60 168 L75 122 L35 95 L85 95 Z" fill="#f97316"/>
+  <text x="100" y="188" text-anchor="middle" fill="#fdba74" font-family="system-ui,sans-serif" font-size="13" font-weight="800">HOT STREAK</text>
+</svg>

@@ -59,7 +59,21 @@ export const env = {
     .filter(Boolean),
   neynarApiKey: optional("NEYNAR_API_KEY"),
   farcasterDomain: optional("FARCASTER_DOMAIN", optional("VITE_FARCASTER_DOMAIN", "localhost")),
+  superteamEarnBaseUrl: optional("SUPERTEAM_EARN_BASE_URL", "https://superteam.fun"),
+  superteamEarnApiKey: optional("SUPERTEAM_EARN_API_KEY"),
+  superteamEarnClaimCode: optional("SUPERTEAM_EARN_CLAIM_CODE"),
+  superteamEarnAgentId: optional("SUPERTEAM_EARN_AGENT_ID"),
+  agentxApiKey: optional("AGENTX_API_KEY"),
+  agentxUrl: optional("AGENTX_URL", "https://agentx.buildingcultureid.space"),
+  wmosUrl: optional("WMOS_URL", "https://wmos.buildingcultureid.space"),
+  matchmindUrl: optional("MATCHMIND_URL", "https://match.buildingcultureid.space"),
+  webacyApiKey: optional("WEBACY_API_KEY") || optional("WEBACCEL_API_KEY"),
+  webacyEnabled: optional("WEBACY_ENABLED", "true") === "true",
 };
+
+export function hasWebacy(): boolean {
+  return env.webacyEnabled && Boolean(env.webacyApiKey);
+}
 
 export function hasDatabase(): boolean {
   const url = env.databaseUrl;

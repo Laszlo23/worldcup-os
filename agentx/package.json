@@ -3,9 +3,9 @@
   "private": true,
   "workspaces": ["apps/*"],
   "scripts": {
-    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w web\" \"cd services/ai-engine && uvicorn app.main:app --reload --host 0.0.0.0 --port 8041\"",
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w web\" \"npm run dev:api\"",
     "dev:web": "npm run dev -w web",
-    "dev:api": "cd services/ai-engine && uvicorn app.main:app --reload --host 0.0.0.0 --port 8041",
+    "dev:api": "cd services/ai-engine && .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8041",
     "build": "npm run build -w web",
     "start:web": "npm run start -w web",
     "db:generate": "prisma generate",
@@ -15,6 +15,7 @@
     "db:purge-demo": "node scripts/purge-demo-data.mjs",
     "demo:run": "node scripts/demo-orchestrator.mjs",
     "deploy:prod": "bash scripts/deploy-prod.sh",
+    "bootstrap:devnet": "cd services/ai-engine && .venv/bin/python ../../scripts/bootstrap-devnet-wallets.py",
     "test:hackathon-readiness": "node scripts/hackathon-readiness.mjs"
   },
   "devDependencies": {

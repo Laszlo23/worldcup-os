@@ -2,6 +2,7 @@ import { defineHandler } from "nitro";
 import { dripDevnetUsdc, isDevnetFaucetEnabled } from "@/server/blockchain/faucet";
 import { hasDatabase } from "@/server/config/env";
 import { maybeOne } from "@/server/db/postgres";
+import { screenWallet } from "@/server/services/webacy-screening";
 import { errorResponse, jsonResponse, rateLimit, requireSession, requireMutationOrigin } from "@/server/middleware/http";
 
 export default defineHandler(async (event) => {
@@ -16,6 +17,9 @@ export default defineHandler(async (event) => {
 
   const wallet = await requireSession(event);
   if (wallet instanceof Response) return wallet;
+
+  const screening = await screenWallet(wallet, "faucet");
+  if (!screening.allowed) return errorResponse(screening.reason, 403);
 
   let userId: string | undefined;
   if (hasDatabase()) {

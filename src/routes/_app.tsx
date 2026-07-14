@@ -8,6 +8,8 @@ import { LiveFeedPanel, LiveFeedMobileTrigger } from "@/components/live-feed-pan
 import { Separator } from "@/components/ui/separator";
 import { SoccerBackdrop } from "@/components/soccer-image";
 import { useAppStore } from "@/lib/store";
+import { DevnetBanner } from "@/components/site/devnet-banner";
+import { PartnerFooter } from "@/components/site/partner-footer";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -39,11 +41,12 @@ function AppLayout() {
   const clearFeedUnread = useAppStore((s) => s.clearFeedUnread);
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="flex-col">
+      <DevnetBanner className="w-full shrink-0" />
       <SoccerBackdrop variant="stadium" />
-      <div className="relative z-10 min-h-screen flex w-full">
+      <div className="relative z-10 flex min-h-0 w-full min-w-0 flex-1">
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col min-w-0 min-h-0">
+        <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 min-h-14 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 pt-[env(safe-area-inset-top)] border-b border-border backdrop-blur-xl bg-background/60">
             <SidebarTrigger className="shrink-0" />
             <Separator orientation="vertical" className="h-5 hidden sm:block" />
@@ -61,6 +64,7 @@ function AppLayout() {
           <main className="flex-1 p-3 sm:p-4 md:p-8 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-8 min-h-0 overflow-auto">
             <Outlet />
           </main>
+          <PartnerFooter compact />
           <MobileBottomNav />
         </SidebarInset>
         <LiveFeedPanel mode="rail" />

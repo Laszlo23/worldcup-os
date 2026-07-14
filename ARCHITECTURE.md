@@ -62,3 +62,7 @@ See [DEPLOY.md](./DEPLOY.md) and `ecosystem.config.cjs`.
 - **MatchMind AI** — `engagement/` → https://match.buildingcultureid.space
 
 Shared Postgres + `worldcup-worker` for World Cup OS and MatchMind only.
+
+## Superteam Earn agents
+
+See [EARN_AGENTS.md](./EARN_AGENTS.md). Operational agent CLI (`npm run earn:*`) discovers bounties and monitors health. AgentX exposes `/api/earn/opportunities` and external agent routes. Superfan ledger awards `agent_deploy` and `agent_win` points across apps.

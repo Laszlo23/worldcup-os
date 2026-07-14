@@ -29,7 +29,18 @@ export default defineHandler(async (event) => {
     const user = await upsertUser(wallet);
     const result = await voteOnPoll(user.id, pollId, choice);
     if (!result.ok) return errorResponse(result.reason ?? "vote_failed", 400);
-    return jsonResponse({ ok: true, choice });
+    return jsonResponse({
+      ok: true,
+      choice,
+      newSticker: result.newSticker
+        ? {
+            id: result.newSticker.id,
+            title: result.newSticker.title,
+            rarity: result.newSticker.rarity,
+            imageUrl: result.newSticker.imageUrl,
+          }
+        : undefined,
+    });
   } catch (err) {
     if (err instanceof LiveDataRequiredError) return errorResponse(err.message, 503);
     throw err;

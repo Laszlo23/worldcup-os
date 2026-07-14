@@ -3,13 +3,16 @@ module.exports = {
     {
       name: "txline-ai-trader-web",
       cwd: "/var/www/agentx-buildingculture/apps/web",
-      script: "npm",
-      args: "start",
+      script: "node",
+      args: ".next/standalone/apps/web/server.js",
       interpreter: "none",
       env: {
         NODE_ENV: "production",
         PORT: "3041",
         HOSTNAME: "0.0.0.0",
+        NEXT_PUBLIC_API_URL: "https://agentx.buildingcultureid.space",
+        NEXT_PUBLIC_WS_URL: "wss://agentx.buildingcultureid.space/ws",
+        NEXT_PUBLIC_APP_URL: "https://agentx.buildingcultureid.space",
       },
       max_memory_restart: "800M",
       autorestart: true,

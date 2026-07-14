@@ -4,6 +4,23 @@ import { getConnection, getUsdcMint, getEscrowPdaForExternalMarket } from "./esc
 import { loadSettlementAuthority } from "./settlement";
 import { env } from "../config/env";
 
+const VERIFY_RETRIES = 8;
+const VERIFY_DELAY_MS = 1_500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchParsedTx(
+  connection: Connection,
+  signature: string,
+): Promise<ParsedTransactionWithMeta | null> {
+  return connection.getParsedTransaction(signature, {
+    maxSupportedTransactionVersion: 0,
+    commitment: "confirmed",
+  });
+}
+
 export type EscrowVerification = {
   ok: boolean;
   reason?: string;
@@ -19,13 +36,19 @@ export async function verifyPlacePredictionTx(params: {
 }): Promise<EscrowVerification> {
   try {
     const connection = getConnection();
-    const tx = await connection.getParsedTransaction(params.txSignature, {
-      maxSupportedTransactionVersion: 0,
-      commitment: "confirmed",
-    });
+    let tx: ParsedTransactionWithMeta | null = null;
 
-    if (!tx || tx.meta?.err) {
+    for (let attempt = 0; attempt < VERIFY_RETRIES; attempt++) {
+      tx = await fetchParsedTx(connection, params.txSignature);
+      if (tx) break;
+      if (attempt < VERIFY_RETRIES - 1) await sleep(VERIFY_DELAY_MS);
+    }
+
+    if (!tx) {
       return { ok: false, reason: "transaction_not_found_or_failed" };
+    }
+    if (tx.meta?.err) {
+      return { ok: false, reason: "transaction_failed_on_chain" };
     }
 
     const user = new PublicKey(params.userPubkey);

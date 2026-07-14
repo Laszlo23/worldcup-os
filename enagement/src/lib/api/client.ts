@@ -1,4 +1,4 @@
-const API_BASE = typeof window !== "undefined" ? "" : process.env.VITE_APP_URL ?? "http://localhost:5173";
+const API_BASE = typeof window !== "undefined" ? "" : process.env.VITE_APP_URL ?? "http://localhost:3019";
 
 export class ApiError extends Error {
   constructor(

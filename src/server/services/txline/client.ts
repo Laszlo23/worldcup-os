@@ -1,6 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import { env } from "../../config/env";
-import { loadTxlineCredentials, touchLastSseAt } from "./credentials";
+import { loadTxlineCredentials, touchLastSseAt, getLastSseAtFromDb } from "./credentials";
 
 export type SseMessage = {
   id?: string;
@@ -202,6 +202,7 @@ export class TxLineClient {
       headers: { ...headers, Accept: "text/event-stream", "Cache-Control": "no-cache" },
     });
     if (!res.ok) throw new Error(`Scores stream failed: ${res.status}`);
+    await touchLastSseAt();
     for await (const message of readSseMessages(res)) {
       await touchLastSseAt();
       await onMessage(parseSseData(message.data));
@@ -215,6 +216,7 @@ export class TxLineClient {
       headers: { ...headers, Accept: "text/event-stream", "Cache-Control": "no-cache" },
     });
     if (!res.ok) throw new Error(`Odds stream failed: ${res.status}`);
+    await touchLastSseAt();
     for await (const message of readSseMessages(res)) {
       await touchLastSseAt();
       await onMessage(parseSseData(message.data));
@@ -256,7 +258,7 @@ export class TxLineClient {
       lastPingAt: this.lastPingAt,
       lastPingOk: this.lastPingOk,
       tokenExpiresAt: creds.expiresAt,
-      lastSseAt: creds.lastSseAt,
+      lastSseAt: await getLastSseAtFromDb(),
     };
   }
 }

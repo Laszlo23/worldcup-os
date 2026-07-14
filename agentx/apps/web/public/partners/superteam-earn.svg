@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" role="img" aria-label="Superteam Earn">
+  <rect x="0" y="4" width="24" height="24" rx="6" fill="#7c3aed"/>
+  <path fill="#fff" d="M8 10h8l4 12h-3l-.8-2.5H7.8L7 22H4l4-12zm4.2 7.5L10 13.2l2.2 4.3z"/>
+  <text x="30" y="14" fill="currentColor" font-family="system-ui,sans-serif" font-size="12" font-weight="700">Superteam</text>
+  <text x="30" y="26" fill="currentColor" opacity="0.75" font-family="system-ui,sans-serif" font-size="10" font-weight="600">Earn Agents</text>
+</svg>

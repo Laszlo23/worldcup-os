@@ -5,6 +5,7 @@ import { formatInsufficientSolMessage } from "@shared/lib/wallet/prediction-erro
 import { getSolBalance } from "@shared/server/services/auth";
 import { hasDatabase } from "@shared/server/config/env";
 import { maybeOne } from "@shared/server/db/postgres";
+import { screenWallet } from "@shared/server/services/webacy-screening";
 import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireMutationOrigin } from "@shared/server/middleware/http";
 
 const buildTxSchema = z.object({
@@ -18,6 +19,9 @@ export default defineHandler(async (event) => {
 
   const wallet = await requireSession(event);
   if (wallet instanceof Response) return wallet;
+
+  const screening = await screenWallet(wallet, "deposit");
+  if (!screening.allowed) return errorResponse(screening.reason, 403);
 
   const body = await readJsonBody<unknown>(event);
   const parsed = buildTxSchema.safeParse(body);

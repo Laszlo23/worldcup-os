@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-07-14T09:40:50.982Z",
+  "baseUrl": "https://wmos.buildingcultureid.space",
+  "checks": [
+    {
+      "id": "audit_root",
+      "name": "npm audit (root)",
+      "status": "warn",
+      "detail": "14 high/critical — run npm audit fix"
+    },
+    {
+      "id": "audit_enagement",
+      "name": "npm audit (enagement)",
+      "status": "warn",
+      "detail": "3 high/critical — run npm audit fix"
+    },
+    {
+      "id": "audit_agentx",
+      "name": "npm audit (agentx)",
+      "status": "warn",
+      "detail": "3 high/critical — run npm audit fix"
+    },
+    {
+      "id": "security_settle",
+      "name": "Settlement endpoint locked",
+      "status": "pass",
+      "detail": "HTTP 401"
+    },
+    {
+      "id": "security_worker_tick",
+      "name": "Worker tick locked",
+      "status": "pass",
+      "detail": "HTTP 401"
+    },
+    {
+      "id": "security_internal_award",
+      "name": "Internal superfan award locked",
+      "status": "pass",
+      "detail": "HTTP 403"
+    },
+    {
+      "id": "security_admin",
+      "name": "Admin dashboard locked",
+      "status": "pass",
+      "detail": "HTTP 401"
+    },
+    {
+      "id": "security_place_prediction",
+      "name": "Place prediction requires session",
+      "status": "pass",
+      "detail": "HTTP 401"
+    },
+    {
+      "id": "webacy_config",
+      "name": "Webacy API key valid",
+      "status": "pass",
+      "detail": "sanctions endpoint returned 200 for test wallet"
+    },
+    {
+      "id": "webacy_health",
+      "name": "Health reports Webacy configured",
+      "status": "warn",
+      "detail": "API key present locally but /api/health.webacyConfigured is not true"
+    },
+    {
+      "id": "security_headers",
+      "name": "Security headers on /api/health",
+      "status": "pass",
+      "detail": "X-Content-Type-Options, X-Frame-Options, Content-Security-Policy"
+    },
+    {
+      "id": "security_hsts",
+      "name": "HSTS on HTTPS",
+      "status": "pass",
+      "detail": "max-age=31536000; includeSubDomains"
+    }
+  ],
+  "ready": true,
+  "summary": {
+    "pass": 8,
+    "warn": 4,
+    "fail": 0
+  }
+}

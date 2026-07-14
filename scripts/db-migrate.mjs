@@ -34,7 +34,14 @@ try {
   }
 
   for (const file of migrationFiles) {
-    if (!file.includes("engagement")) continue;
+// Filter migrations: engagement, superfan, live_markets, sticker
+    if (
+      !file.includes("engagement") &&
+      !file.includes("superfan") &&
+      !file.includes("live_markets") &&
+      !file.includes("sticker")
+    )
+      continue;
     const sql = await readFile(path.join(migrationsDir, file), "utf8");
     await pool.query(sql);
     console.log(`Applied migration: ${file}`);

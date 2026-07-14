@@ -13,6 +13,18 @@ export type WalletTxFns = {
   sendTransaction?: (tx: Transaction | VersionedTransaction, connection: Connection) => Promise<string>;
 };
 
+function isBlockhashError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return msg.includes("blockhash") || msg.includes("block hash") || msg.includes("expired");
+}
+
+/** Pre-built server txs go stale quickly — refresh immediately before sign/send. */
+async function refreshLegacyBlockhash(tx: Transaction, connection: Connection): Promise<void> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = blockhash;
+  tx.lastValidBlockHeight = lastValidBlockHeight;
+}
+
 function txFnsFromInjected(wallet: InjectedWallet): WalletTxFns {
   return {
     signTransaction: async (tx) => {
@@ -21,12 +33,47 @@ function txFnsFromInjected(wallet: InjectedWallet): WalletTxFns {
     },
     sendTransaction: async (tx, connection) => {
       await ensureWalletNetwork(wallet.name);
+      if (tx instanceof Transaction) {
+        await refreshLegacyBlockhash(tx, connection);
+      }
       const signed = await wallet.provider.signTransaction(tx);
       const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
-      await connection.confirmTransaction(signature, "confirmed");
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
       return signature;
     },
   };
+}
+
+/** Sign and broadcast a transaction (adapter send or sign + raw send fallback). */
+export async function submitTransaction(
+  tx: Transaction | VersionedTransaction,
+  txFns: WalletTxFns,
+  connection: Connection,
+): Promise<string> {
+  const broadcast = async (): Promise<string> => {
+    if (tx instanceof Transaction) {
+      await refreshLegacyBlockhash(tx, connection);
+    }
+    if (txFns.sendTransaction) {
+      return txFns.sendTransaction(tx, connection);
+    }
+    const signed = await txFns.signTransaction(tx);
+    const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+    return signature;
+  };
+
+  try {
+    return await broadcast();
+  } catch (err) {
+    if (tx instanceof Transaction && isBlockhashError(err)) {
+      await refreshLegacyBlockhash(tx, connection);
+      return await broadcast();
+    }
+    throw err;
+  }
 }
 
 /** Resolve wallet signing at action time — Phantom, OKX, or wallet-adapter bridge. */

@@ -29,6 +29,21 @@ function txFnsFromInjected(wallet: InjectedWallet): WalletTxFns {
   };
 }
 
+/** Sign and broadcast a transaction (adapter send or sign + raw send fallback). */
+export async function submitTransaction(
+  tx: Transaction | VersionedTransaction,
+  txFns: WalletTxFns,
+  connection: Connection,
+): Promise<string> {
+  if (txFns.sendTransaction) {
+    return txFns.sendTransaction(tx, connection);
+  }
+  const signed = await txFns.signTransaction(tx);
+  const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
+  await connection.confirmTransaction(signature, "confirmed");
+  return signature;
+}
+
 /** Resolve wallet signing at action time — Phantom, OKX, or wallet-adapter bridge. */
 export async function resolveWalletTxFns(): Promise<WalletTxFns> {
   const { wallet, walletTxFns } = useAppStore.getState();

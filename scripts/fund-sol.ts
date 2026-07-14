@@ -3,6 +3,8 @@
  * Send devnet SOL to a wallet (deployer transfer or faucet airdrop).
  * Usage: npm run fund:sol -- <pubkey> [amount_sol]
  */
+import { loadEnv } from "./load-env.mjs";
+loadEnv();
 import {
   Connection,
   Keypair,
@@ -26,7 +28,7 @@ if (!recipientArg) {
 function loadDeployer(): Keypair {
   const secret = process.env.SOLANA_DEPLOYER_SECRET ?? process.env.SETTLEMENT_AUTHORITY_SECRET;
   if (!secret) throw new Error("SOLANA_DEPLOYER_SECRET required");
-  const trimmed = secret.trim();
+  const trimmed = secret.trim().replace(/^"|"$/g, "");
   try {
     const parsed = JSON.parse(trimmed) as number[];
     if (Array.isArray(parsed)) return Keypair.fromSecretKey(Uint8Array.from(parsed));

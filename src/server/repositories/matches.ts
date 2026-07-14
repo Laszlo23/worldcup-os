@@ -8,6 +8,33 @@ function requireDatabase(): void {
   if (!hasDatabase()) throw new LiveDataRequiredError();
 }
 
+/** Featured match for engagement surfaces — prefer live, then bettable scheduled with open winner market. */
+export async function findFeaturedEngagementMatch(): Promise<Match | null> {
+  const matches = await listMatches();
+  if (!matches.length) return null;
+
+  const live = matches.find((m) => m.status === "live" || m.status === "halftime");
+  if (live) return live;
+
+  const bettableRow = await maybeOne<{ external_id: string }>(
+    `
+      select mt.external_id
+      from matches mt
+      join markets m on m.match_id = mt.id and m.closed = false and m.type = 'winner'
+      where mt.status = 'scheduled'
+      group by mt.external_id, mt.kickoff_at
+      order by mt.kickoff_at asc nulls last
+      limit 1
+    `,
+  );
+  if (bettableRow) {
+    const withMarkets = matches.find((m) => m.id === bettableRow.external_id);
+    if (withMarkets) return withMarkets;
+  }
+
+  return matches.find((m) => m.status === "scheduled") ?? matches[0] ?? null;
+}
+
 export async function listMatches(): Promise<Match[]> {
   requireDatabase();
 

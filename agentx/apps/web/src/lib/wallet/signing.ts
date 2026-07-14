@@ -6,6 +6,17 @@ export type WalletTxFns = {
   sendTransaction?: (tx: Transaction, connection: Connection) => Promise<string>;
 };
 
+async function waitForConfirmedTx(connection: Connection, signature: string): Promise<void> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  const confirmation = await connection.confirmTransaction(
+    { signature, blockhash, lastValidBlockHeight },
+    "confirmed",
+  );
+  if (confirmation.value.err) {
+    throw new Error("Transaction failed on-chain");
+  }
+}
+
 export async function sendBase64Transaction(
   base64Tx: string,
   fns: WalletTxFns,
@@ -13,11 +24,13 @@ export async function sendBase64Transaction(
   const connection = new Connection(getSolanaRpcUrl(), "confirmed");
   const raw = Buffer.from(base64Tx, "base64");
   const tx = Transaction.from(raw);
-  const signed = await fns.signTransaction(tx);
+  let signature: string;
   if (fns.sendTransaction) {
-    return fns.sendTransaction(signed, connection);
+    signature = await fns.sendTransaction(tx, connection);
+  } else {
+    const signed = await fns.signTransaction(tx);
+    signature = await connection.sendRawTransaction(signed.serialize());
   }
-  const sig = await connection.sendRawTransaction(signed.serialize());
-  await connection.confirmTransaction(sig, "confirmed");
-  return sig;
+  await waitForConfirmedTx(connection, signature);
+  return signature;
 }

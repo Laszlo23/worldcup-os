@@ -79,6 +79,56 @@ async def ensure_agents() -> list[dict]:
     return demo_store.get_agents()
 
 
+async def list_trading_agents() -> list[dict]:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.list_trading_agents()
+    return await ensure_agents()
+
+
+async def create_user_agent(owner_wallet: str, template: str, display_name: str | None = None) -> dict:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.create_user_agent(owner_wallet, template, display_name)
+    raise ValueError("Database required to deploy agents")
+
+
+async def get_agents_by_owner(owner_wallet: str) -> list[dict]:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.get_agents_by_owner(owner_wallet)
+    return []
+
+
+async def get_agent_by_name(name: str) -> dict | None:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.get_agent_by_name(name)
+    from app import demo_store
+    demo_store.init_demo_store()
+    return next((a for a in demo_store.get_agents() if a.get("name") == name), None)
+
+
+async def list_decisions_for_signal(signal_id: str) -> list[dict]:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.list_decisions_for_signal(signal_id)
+    return []
+
+
+async def get_latest_anchored_prediction() -> dict | None:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.get_latest_anchored_prediction()
+    return None
+
+
+async def run_agent_migrations() -> None:
+    if await check_db():
+        from app import db as pgdb
+        await pgdb.run_agent_migrations()
+
+
 async def get_latest_portfolio() -> dict | None:
     if await check_db():
         from app import db as pgdb
@@ -197,3 +247,49 @@ async def close_pool() -> None:
         await pgdb.close_pool()
     except Exception:
         pass
+
+
+async def list_live_markets_for_match(match_id: str) -> list[dict]:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.list_live_markets_for_match(match_id)
+    return []
+
+
+async def get_market_by_external_id(external_id: str) -> dict | None:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.get_market_by_external_id(external_id)
+    return None
+
+
+async def get_market_option(market_id: str, option_external_id: str) -> dict | None:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.fetch_one(
+            "select id, label, price from market_options where market_id = $1 and external_id = $2",
+            market_id,
+            option_external_id,
+        )
+    return None
+
+
+async def ensure_user(wallet_pubkey: str) -> dict:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.ensure_user(wallet_pubkey)
+    return {"id": "demo-user", "wallet_pubkey": wallet_pubkey}
+
+
+async def prediction_tx_exists(tx_signature: str) -> bool:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.prediction_tx_exists(tx_signature)
+    return False
+
+
+async def insert_usdc_prediction(data: dict) -> dict:
+    if await check_db():
+        from app import db as pgdb
+        return await pgdb.insert_usdc_prediction(data)
+    return data

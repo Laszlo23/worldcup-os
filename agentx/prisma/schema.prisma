@@ -116,12 +116,20 @@ model Agent {
   riskScore      Float    @default(0) @map("risk_score")
   treasuryPubkey String?  @map("treasury_pubkey")
   treasuryBalance Float   @default(0) @map("treasury_balance")
+  ownerWallet    String?  @map("owner_wallet")
+  isSystem       Boolean  @default(false) @map("is_system")
+  displayName    String?  @map("display_name")
   lastSyncedAt   DateTime? @map("last_synced_at")
+  earnAgentId    String?   @map("earn_agent_id")
+  earnUsername   String?   @map("earn_username")
+  callbackUrl    String?   @map("callback_url")
+  lastHeartbeatAt DateTime? @map("last_heartbeat_at")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   decisions AgentDecision[]
 
+  @@index([ownerWallet])
   @@map("agents")
 }
 

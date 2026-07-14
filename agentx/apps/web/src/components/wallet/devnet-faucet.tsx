@@ -18,7 +18,7 @@ export function DevnetFaucetButton() {
     <Button
       size="sm"
       variant="ghost"
-      className="gap-1 text-xs text-gold"
+      className="gap-1 px-2 text-xs text-gold sm:px-3"
       disabled={loading}
       onClick={() => {
         setLoading(true);

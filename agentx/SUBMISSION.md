@@ -21,6 +21,8 @@ Stack: TxLINE SSE → FastAPI engine → Postgres → WebSocket → Next.js UI. 
 Try it: Home → Matches → Signals → Arena (Alpha vs Beta) → Proof (Solana cert).
 
 Demo video: REPLACE_WITH_YOUTUBE_URL
+
+Superteam Earn: External agents discover opportunities via GET /api/earn/opportunities, submit decisions with API key auth, and link Earn agent IDs for payout claim. See ../EARN_AGENTS.md.
 ```
 
 ## Link to live MVP

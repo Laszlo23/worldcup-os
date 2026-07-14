@@ -1,0 +1,22 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "superform-worldcup-agent",
+  "description": "TxLINE sports intelligence stack — World Cup OS predictions, MatchMind fan engagement, AgentX autonomous arena.",
+  "image": "https://wmos.buildingcultureid.space/partners/txline.svg",
+  "services": [
+    {
+      "name": "MCP",
+      "endpoint": "https://agentx.buildingcultureid.space/api/health"
+    },
+    {
+      "name": "A2A",
+      "endpoint": "https://wmos.buildingcultureid.space/api/earn/listings"
+    },
+    {
+      "name": "wallet",
+      "endpoint": "6XitbmLNPGzsvGo6aNTbMG3uvwqdbmssy8g4zhbJrUTr"
+    }
+  ],
+  "active": true,
+  "x402Support": false
+}

@@ -1,29 +1,52 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, Loader2 } from "lucide-react";
+import { ArrowRight, Sparkles, Loader2, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/matchmind/AppShell";
 import { PredictionCard } from "@/components/matchmind/PredictionCard";
 import { MomentCard } from "@/components/matchmind/MomentCard";
-import { useActiveMatch } from "@/lib/use-active-match";
+import { useActiveMatchState } from "@/lib/use-active-match";
 import { useEngagementPolls, useEngagementMoments, useLiveEvents } from "@/lib/queries/hooks";
+import { prefetchMatchFeed } from "@/lib/prefetch-match";
+import { Button } from "@/components/ui/button";
+import { MatchLoadingSkeleton } from "@/components/matchmind/MatchLoadingSkeleton";
 
 export const Route = createFileRoute("/")({
+  loader: async ({ context }) => {
+    try {
+      await prefetchMatchFeed(context.queryClient);
+    } catch {
+      // Client can retry; avoid SSR hard-fail when API is briefly unavailable.
+    }
+  },
   component: MatchScreen,
 });
 
 function MatchScreen() {
-  const match = useActiveMatch();
+  const { match, isLoading, isError, refetch } = useActiveMatchState();
   const matchId = match?.id;
   const { data: polls = [], isPending: pollsLoading } = useEngagementPolls(matchId ?? undefined);
   const { data: moments = [] } = useEngagementMoments(matchId ?? undefined);
   const { data: events = [] } = useLiveEvents(matchId ?? undefined);
 
-  if (!match) {
+  if (isLoading) {
     return (
       <AppShell title="Live Match" subtitle="TxLINE feed">
-        <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          Loading live fixture from TxLINE…
+        <MatchLoadingSkeleton />
+      </AppShell>
+    );
+  }
+
+  if (isError || !match) {
+    return (
+      <AppShell title="Live Match" subtitle="TxLINE feed">
+        <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
+          <p className="text-sm text-muted-foreground">
+            Could not load the live fixture. Check your connection and try again.
+          </p>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
+            <RefreshCw className="size-3.5" />
+            Retry
+          </Button>
         </div>
       </AppShell>
     );
@@ -57,7 +80,7 @@ function MatchScreen() {
           <div className="mt-5 space-y-2">
             <div className="relative h-6 overflow-hidden rounded-md border border-border bg-card p-1">
               <motion.div
-                initial={{ width: 0 }}
+                initial={false}
                 animate={{ width: `${momentumPct}%` }}
                 className="h-full rounded-sm bg-primary mm-pulse-glow"
               />
@@ -103,12 +126,17 @@ function MatchScreen() {
       {featuredMoment ? (
         <section className="mt-8 px-4">
           <div className="mb-3 flex items-center justify-between">
-            <SectionLabel>Featured moment</SectionLabel>
+            <SectionLabel>Latest sticker drop</SectionLabel>
             <Link to="/moments" className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-              Vault <ArrowRight className="size-3.5" />
+              Album <ArrowRight className="size-3.5" />
             </Link>
           </div>
           <MomentCard moment={featuredMoment} />
+          {!featuredMoment.claimed ? (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Claim on Solana to add this goal sticker to your album.
+            </p>
+          ) : null}
         </section>
       ) : null}
     </AppShell>

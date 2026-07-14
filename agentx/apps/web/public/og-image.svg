@@ -15,6 +15,6 @@
   <circle cx="160" cy="520" r="220" fill="#7c3aed" opacity="0.08"/>
   <text x="96" y="240" fill="#f8fafc" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="700">TxLINE AI Trader</text>
   <text x="96" y="320" fill="#e2e8f0" font-family="Inter, system-ui, sans-serif" font-size="34" font-weight="500">Real-time sports intelligence. Autonomous agents.</text>
-  <text x="96" y="400" fill="#94a3b8" font-family="IBM Plex Mono, monospace" font-size="22" letter-spacing="3">TXLINE FEED · AI SIGNALS · SOLANA CERTIFICATES</text>
+  <text x="96" y="400" fill="#94a3b8" font-family="IBM Plex Mono, monospace" font-size="22" letter-spacing="3">TXLINE FEED ï¿½ AI SIGNALS ï¿½ SOLANA CERTIFICATES</text>
   <rect x="96" y="450" width="480" height="6" rx="3" fill="url(#gold)"/>
 </svg>

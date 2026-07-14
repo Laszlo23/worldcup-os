@@ -1,6 +1,6 @@
 import { hasDatabase } from "../config/env";
 import { query } from "../db/postgres";
-import { syncFixturesFromTxline, closeExpiredMarkets, processScoreUpdate, processOddsUpdate, reconcilePostKickoffFixtures, syncScoresSnapshotsFromTxline, dedupeGoalBroadcasts } from "../services/market-engine";
+import { syncFixturesFromTxline, closeExpiredMarkets, processScoreUpdate, processOddsUpdate, reconcilePostKickoffFixtures, syncScoresSnapshotsFromTxline, dedupeGoalBroadcasts, backfillMissingMarkets } from "../services/market-engine";
 import { processSettlementJob } from "../services/settlement";
 import { getAnalyticsSnapshot } from "../services/analytics";
 import { listPredictionsForWallet } from "../repositories/matches";
@@ -75,6 +75,7 @@ export async function runWorkerTick() {
   }
 
   results.fixturesSynced = await syncFixturesFromTxline();
+  results.marketsBackfilled = await backfillMissingMarkets();
   results.marketsClosed = await closeExpiredMarkets();
   results.postKickoff = await reconcilePostKickoffFixtures();
   results.scoreSnapshots = await syncScoresSnapshotsFromTxline();
@@ -85,6 +86,20 @@ export async function runWorkerTick() {
     results.engagementPollsResolved = await syncEngagementPolls();
   } catch (err) {
     console.error("engagement poll sync:", err);
+  }
+
+  try {
+    const { syncLiveMarketsForAllInPlay } = await import("../services/live-markets");
+    results.liveMarketsCreated = await syncLiveMarketsForAllInPlay();
+  } catch (err) {
+    console.error("live markets sync:", err);
+  }
+
+  try {
+    const { settleLiveWindowMarkets } = await import("../services/settlement-live");
+    results.liveMarketsSettled = await settleLiveWindowMarkets();
+  } catch (err) {
+    console.error("live markets settle:", err);
   }
 
   return { ok: true, results };

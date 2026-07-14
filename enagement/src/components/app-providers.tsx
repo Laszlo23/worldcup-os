@@ -1,33 +1,27 @@
 import { type ReactNode } from "react";
-import { ClientOnly } from "@tanstack/react-router";
 import { LiveProvider } from "@/lib/realtime/live-provider";
 import { SolanaWalletProvider } from "@/lib/wallet/provider";
 import { WalletTxBridge } from "@/lib/wallet/tx-bridge";
 import { WalletSessionRestore } from "@/lib/wallet/session-restore";
 import { WalletUiReadyContext } from "@/lib/wallet/wallet-ui-ready";
-
-function ProvidersWithoutWallet({ children }: { children: ReactNode }) {
-  return <WalletUiReadyContext.Provider value={false}>{children}</WalletUiReadyContext.Provider>;
-}
-
-function ProvidersWithWallet({ children }: { children: ReactNode }) {
-  return (
-    <SolanaWalletProvider>
-      <WalletUiReadyContext.Provider value={true}>
-        <WalletTxBridge />
-        <WalletSessionRestore />
-        {children}
-      </WalletUiReadyContext.Provider>
-    </SolanaWalletProvider>
-  );
-}
+import { useClientMounted } from "@/hooks/use-client-mounted";
 
 export function AppProviders({ children }: { children: ReactNode }) {
+  const clientMounted = useClientMounted();
+
   return (
     <LiveProvider>
-      <ClientOnly fallback={<ProvidersWithoutWallet>{children}</ProvidersWithoutWallet>}>
-        <ProvidersWithWallet>{children}</ProvidersWithWallet>
-      </ClientOnly>
+      {clientMounted ? (
+        <SolanaWalletProvider>
+          <WalletUiReadyContext.Provider value={true}>
+            <WalletTxBridge />
+            <WalletSessionRestore />
+            {children}
+          </WalletUiReadyContext.Provider>
+        </SolanaWalletProvider>
+      ) : (
+        <WalletUiReadyContext.Provider value={false}>{children}</WalletUiReadyContext.Provider>
+      )}
     </LiveProvider>
   );
 }

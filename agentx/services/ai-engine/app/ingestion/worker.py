@@ -101,6 +101,18 @@ async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict 
         away_team = {"name": "Away", "flag": "⚽"}
 
     status = str(payload.get("status") or (existing or {}).get("status", "scheduled")).lower()
+    raw_state = str(
+        payload.get("gameState")
+        or payload.get("GameState")
+        or payload.get("game_state")
+        or payload.get("matchStatus")
+        or payload.get("MatchStatus")
+        or ""
+    ).lower()
+    if raw_state in ("halftime", "half_time", "half-time", "ht"):
+        status = "halftime"
+    elif status in ("inprogress", "in_progress", "inplay", "in_play"):
+        status = "live"
     if minute >= 90 and status == "live":
         status = "finished"
 
@@ -124,6 +136,12 @@ async def upsert_from_payload(payload: dict, event_type: str = "score") -> dict 
         "raw_payload": payload,
     }
     row = await db.upsert_match(match_data)
+
+    try:
+        from app.services.live_markets import sync_live_markets_for_match
+        await sync_live_markets_for_match(row["id"], row["external_id"], str(row.get("status", status)))
+    except Exception as exc:
+        logger.warning("[upsert] live markets sync: %s", exc)
 
     if event_type == "score" and existing and (home_score != existing.get("score_home") or away_score != existing.get("score_away")):
         home_name = home_team.get("name", "Home") if isinstance(home_team, dict) else "Home"

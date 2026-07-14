@@ -3,7 +3,10 @@
  * Standalone TxLINE listener + worker process.
  * Run: npx tsx scripts/worker.ts
  */
+import { loadEnv } from "./load-env.ts";
 import { startTxlineListener, runWorkerTick } from "../src/server/workers/runner";
+
+loadEnv();
 
 async function main() {
   console.log("[worker] Starting TxLINE listener...");

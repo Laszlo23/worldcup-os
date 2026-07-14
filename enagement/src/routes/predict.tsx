@@ -3,12 +3,20 @@ import { AppShell } from "@/components/matchmind/AppShell";
 import { PredictionCard } from "@/components/matchmind/PredictionCard";
 import { UsdcPredictPanel } from "@/components/matchmind/UsdcPredictPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useActiveMatch } from "@/lib/use-active-match";
+import { useActiveMatchState } from "@/lib/use-active-match";
 import { useEngagementPolls, usePassport } from "@/lib/queries/hooks";
 import { useAppStore } from "@/lib/store";
+import { prefetchMatchFeed } from "@/lib/prefetch-match";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/predict")({
+  loader: async ({ context }) => {
+    try {
+      await prefetchMatchFeed(context.queryClient);
+    } catch {
+      // Client retry via queries
+    }
+  },
   head: () => ({
     meta: [{ title: "Predict — MatchMind AI" }],
   }),
@@ -16,7 +24,7 @@ export const Route = createFileRoute("/predict")({
 });
 
 function PredictScreen() {
-  const match = useActiveMatch();
+  const { match } = useActiveMatchState();
   const matchId = match?.id;
   const { data: polls = [], isPending } = useEngagementPolls(matchId ?? undefined);
   const wallet = useAppStore((s) => s.wallet);

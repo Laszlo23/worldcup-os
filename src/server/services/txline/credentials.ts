@@ -80,6 +80,15 @@ export async function saveTxlineCredentials(params: {
   );
 }
 
+export async function getLastSseAtFromDb(): Promise<string | null> {
+  if (!hasDatabase()) return memoryCreds?.lastSseAt ?? null;
+  const row = await maybeOne<{ last_sse_at: string | null }>(
+    "select last_sse_at from txline_credentials where service_level = $1",
+    [env.txlineServiceLevel],
+  );
+  return row?.last_sse_at ?? memoryCreds?.lastSseAt ?? null;
+}
+
 export async function touchLastSseAt(): Promise<void> {
   const now = new Date().toISOString();
   if (memoryCreds) memoryCreds.lastSseAt = now;

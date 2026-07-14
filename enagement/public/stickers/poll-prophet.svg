@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="24" fill="#1e1b4b"/>
+  <circle cx="100" cy="90" r="38" fill="#6366f1"/>
+  <path d="M100 58 L108 82 L134 82 L112 98 L120 122 L100 106 L80 122 L88 98 L66 82 L92 82 Z" fill="#c7d2fe"/>
+  <text x="100" y="168" text-anchor="middle" fill="#a5b4fc" font-family="system-ui,sans-serif" font-size="13" font-weight="800">POLL PROPHET</text>
+</svg>

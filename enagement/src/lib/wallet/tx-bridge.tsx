@@ -1,14 +1,9 @@
 import { useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { Transaction } from "@solana/web3.js";
 import { useAppStore } from "../store";
 import { findInjectedForSession, injectedPubkey } from "./injected-wallet";
 import type { WalletTxFns } from "./signing";
-
-function injectedTxFns(injected: NonNullable<ReturnType<typeof findInjectedForSession>>): WalletTxFns {
-  return {
-    signTransaction: (tx) => injected.provider.signTransaction(tx),
-  };
-}
 
 export function WalletTxBridge() {
   const { signTransaction, sendTransaction, connected, publicKey, wallet: adapterWallet } = useWallet();
@@ -30,7 +25,21 @@ export function WalletTxBridge() {
     }
 
     if (sessionPubkey && injected && injectedPubkeyStr === sessionPubkey) {
-      setWalletTxFns(injectedTxFns(injected));
+      setWalletTxFns({
+        signTransaction: (tx) => injected.provider.signTransaction(tx),
+        sendTransaction: async (tx, connection) => {
+          if (tx instanceof Transaction) {
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+            tx.recentBlockhash = blockhash;
+            tx.lastValidBlockHeight = lastValidBlockHeight;
+          }
+          const signed = await injected.provider.signTransaction(tx);
+          const signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+          await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+          return signature;
+        },
+      });
       return () => setWalletTxFns(null);
     }
 

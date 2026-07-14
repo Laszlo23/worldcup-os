@@ -116,7 +116,7 @@ export function findInjectedForSession(sessionAddress: string): InjectedWallet |
     const pubkey = injectedPubkey(wallet.provider);
     if (pubkey === sessionAddress) return wallet;
   }
-  return getInjectedWallet();
+  return null;
 }
 
 export async function connectInjectedWallet(wallet: InjectedWallet): Promise<string> {

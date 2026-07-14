@@ -1,8 +1,14 @@
+import { syncPassportXpLedger } from "./superfan";
 import { hasDatabase, LiveDataRequiredError } from "../config/env";
 import { maybeOne, one, query } from "../db/postgres";
 
 function requireDatabase(): void {
   if (!hasDatabase()) throw new LiveDataRequiredError();
+}
+
+async function mirrorPassportXp(userId: string, xpDelta: number, reason: string): Promise<void> {
+  const user = await maybeOne<{ wallet_pubkey: string }>("select wallet_pubkey from users where id = $1", [userId]);
+  if (user) await syncPassportXpLedger(user.wallet_pubkey, xpDelta, reason);
 }
 
 export type EngagementPollRow = {
@@ -82,12 +88,17 @@ export async function getPassport(userId: string): Promise<EngagementPassport> {
     stadium_verified: number;
   }>("select * from engagement_passports where user_id = $1", [userId]);
 
+  const stickerCount = await countUserStickers(userId);
+  const growthSetComplete = await hasSetCompletion(userId, "set-growth");
+
   const achievements = [
     { id: "first-predict", title: "First Prediction", unlocked: row.predictions_total > 0 },
     { id: "streak-3", title: "3-Win Streak", unlocked: row.streak >= 3 },
-    { id: "moment-collector", title: "Moment Collector", unlocked: row.moments_claimed >= 1 },
+    { id: "sticker-collector", title: "Sticker Collector", unlocked: row.moments_claimed >= 1 || stickerCount > 0 },
     { id: "stadium-proof", title: "Stadium Verified", unlocked: row.stadium_verified > 0 },
     { id: "xp-500", title: "500 XP Club", unlocked: row.xp >= 500 },
+    { id: "sticker-collector-5", title: "5 Stickers Earned", unlocked: stickerCount >= 5 },
+    { id: "set-growth-complete", title: "Growth Squad Complete", unlocked: growthSetComplete },
   ];
 
   return {
@@ -173,7 +184,11 @@ function inferResolutionKind(question: string): string {
   return "goal_in_window";
 }
 
-export async function voteOnPoll(userId: string, pollExternalId: string, choice: "yes" | "no"): Promise<{ ok: boolean; reason?: string }> {
+export async function voteOnPoll(userId: string, pollExternalId: string, choice: "yes" | "no"): Promise<{
+  ok: boolean;
+  reason?: string;
+  newSticker?: StickerDef;
+}> {
   requireDatabase();
   const poll = await maybeOne<{ id: string; closes_at: string; outcome: string | null }>(
     "select id, closes_at, outcome from engagement_polls where external_id = $1",
@@ -189,6 +204,11 @@ export async function voteOnPoll(userId: string, pollExternalId: string, choice:
   );
   if (existing) return { ok: false, reason: "already_voted" };
 
+  const before = await maybeOne<{ predictions_total: number }>(
+    "select predictions_total from engagement_passports where user_id = $1",
+    [userId],
+  );
+
   await query(
     "insert into engagement_poll_votes (poll_id, user_id, choice) values ($1, $2, $3)",
     [poll.id, userId, choice],
@@ -198,7 +218,13 @@ export async function voteOnPoll(userId: string, pollExternalId: string, choice:
     "update engagement_passports set predictions_total = predictions_total + 1, updated_at = now() where user_id = $1",
     [userId],
   );
-  return { ok: true };
+
+  let newSticker: StickerAwardResult | null = null;
+  if ((before?.predictions_total ?? 0) === 0) {
+    newSticker = await awardStickerIfEligible(userId, "first_predict", pollExternalId);
+  }
+
+  return { ok: true, newSticker: newSticker?.awarded ? newSticker.sticker : undefined };
 }
 
 export async function resolvePoll(pollId: string, outcome: "yes" | "no" | "void"): Promise<void> {
@@ -242,6 +268,15 @@ export async function resolvePoll(pollId: string, outcome: "yes" | "no" | "void"
         `,
         [vote.user_id, xp],
       );
+      await mirrorPassportXp(vote.user_id, xp, `poll-${pollId}`);
+      await awardStickerIfEligible(vote.user_id, "poll_win", pollId);
+      const streakRow = await maybeOne<{ streak: number }>(
+        "select streak from engagement_passports where user_id = $1",
+        [vote.user_id],
+      );
+      if ((streakRow?.streak ?? 0) >= 3) {
+        await awardStickerIfEligible(vote.user_id, "streak_3", pollId);
+      }
     } else {
       await query(
         "update engagement_passports set streak = 0, updated_at = now() where user_id = $1",
@@ -258,10 +293,13 @@ export async function listMoments(matchExternalId?: string, userId?: string): Pr
       select
         em.*,
         m.external_id as match_external_id,
-        exists (
-          select 1 from engagement_moment_claims c
-          where c.moment_id = em.id and ($2::uuid is null or c.user_id = $2)
-        ) as claimed
+        case
+          when $2::uuid is null then false
+          else exists (
+            select 1 from engagement_moment_claims c
+            where c.moment_id = em.id and c.user_id = $2
+          )
+        end as claimed
       from engagement_moments em
       join matches m on m.id = em.match_id
       where ($1::text is null or m.external_id = $1)
@@ -342,6 +380,14 @@ export async function recordMomentClaim(params: {
     "update engagement_passports set moments_claimed = moments_claimed + 1, xp = xp + 50, updated_at = now() where user_id = $1",
     [params.userId],
   );
+  await mirrorPassportXp(params.userId, 50, "moment-claim");
+  const claimedRow = await maybeOne<{ moments_claimed: number }>(
+    "select moments_claimed from engagement_passports where user_id = $1",
+    [params.userId],
+  );
+  if ((claimedRow?.moments_claimed ?? 0) >= 5) {
+    await awardStickerIfEligible(params.userId, "moments_5", moment.id);
+  }
   return { ok: true };
 }
 
@@ -366,6 +412,8 @@ export async function recordStadiumProof(params: {
     "update engagement_passports set stadium_verified = stadium_verified + 1, xp = xp + 100, updated_at = now() where user_id = $1",
     [params.userId],
   );
+  await mirrorPassportXp(params.userId, 100, "stadium-verify");
+  await awardStickerIfEligible(params.userId, "stadium_verify", params.matchId);
 }
 
 export async function getStadiumStatus(userId: string, matchId: string): Promise<{ verified: boolean; txSignature?: string }> {
@@ -490,4 +538,328 @@ export async function resolveExpiredPollsFromEvents(): Promise<number> {
 /** @deprecated Use resolveExpiredPollsFromEvents */
 export async function resolveExpiredPolls(): Promise<number> {
   return resolveExpiredPollsFromEvents();
+}
+
+// --- Sticker album ---
+
+const STICKER_SET_TITLES: Record<string, string> = {
+  "set-goals": "Goal Drops",
+  "set-matchday": "Matchday Crew",
+  "set-growth": "Growth Squad",
+};
+
+const SET_COMPLETION_BONUS_XP = 100;
+
+export type StickerDefRow = {
+  id: string;
+  title: string;
+  description: string;
+  set_id: string;
+  rarity: string;
+  image_url: string;
+  earn_rule: string;
+  xp_reward: number;
+  sort_order: number;
+};
+
+export type StickerDef = {
+  id: string;
+  title: string;
+  description: string;
+  setId: string;
+  setTitle: string;
+  rarity: string;
+  imageUrl: string;
+  earnRule: string;
+  xpReward: number;
+  sortOrder: number;
+};
+
+export type StickerAwardResult = {
+  awarded: boolean;
+  sticker?: StickerDef;
+  setCompleted?: boolean;
+};
+
+export type AlbumSticker = {
+  id: string;
+  title: string;
+  description: string;
+  rarity: string;
+  imageUrl: string;
+  owned: boolean;
+  earnedAt?: string;
+  kind: "static" | "moment";
+  serial?: string;
+  claimed?: boolean;
+  matchId?: string;
+  player?: string;
+  minute?: number;
+};
+
+export type StickerAlbumSet = {
+  id: string;
+  title: string;
+  owned: number;
+  total: number;
+  stickers: AlbumSticker[];
+};
+
+function mapStickerDef(row: StickerDefRow): StickerDef {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    setId: row.set_id,
+    setTitle: STICKER_SET_TITLES[row.set_id] ?? row.set_id,
+    rarity: row.rarity,
+    imageUrl: row.image_url,
+    earnRule: row.earn_rule,
+    xpReward: row.xp_reward,
+    sortOrder: row.sort_order,
+  };
+}
+
+export async function listStickerDefs(): Promise<StickerDef[]> {
+  requireDatabase();
+  const rows = await query<StickerDefRow>(
+    "select * from engagement_sticker_defs order by set_id, sort_order",
+  );
+  return rows.map(mapStickerDef);
+}
+
+async function countUserStickers(userId: string): Promise<number> {
+  const row = await maybeOne<{ count: string }>(
+    "select count(*)::text as count from engagement_user_stickers where user_id = $1",
+    [userId],
+  );
+  return Number(row?.count ?? 0);
+}
+
+async function hasSetCompletion(userId: string, setId: string): Promise<boolean> {
+  const row = await maybeOne<{ set_id: string }>(
+    "select set_id from engagement_sticker_set_completions where user_id = $1 and set_id = $2",
+    [userId, setId],
+  );
+  return Boolean(row);
+}
+
+export async function awardStickerIfEligible(
+  userId: string,
+  earnRule: string,
+  sourceRef?: string,
+): Promise<StickerAwardResult> {
+  requireDatabase();
+  const def = await maybeOne<StickerDefRow>(
+    "select * from engagement_sticker_defs where earn_rule = $1",
+    [earnRule],
+  );
+  if (!def) return { awarded: false };
+
+  const existing = await maybeOne<{ id: string }>(
+    "select id from engagement_user_stickers where user_id = $1 and sticker_id = $2",
+    [userId, def.id],
+  );
+  if (existing) return { awarded: false };
+
+  await query(
+    "insert into engagement_user_stickers (user_id, sticker_id, source_ref) values ($1, $2, $3)",
+    [userId, def.id, sourceRef ?? null],
+  );
+  await ensurePassport(userId);
+  await query(
+    "update engagement_passports set xp = xp + $2, updated_at = now() where user_id = $1",
+    [userId, def.xp_reward],
+  );
+  await mirrorPassportXp(userId, def.xp_reward, `sticker-${def.id}`);
+
+  const setCompleted = await checkSetCompletion(userId, def.set_id);
+  return { awarded: true, sticker: mapStickerDef(def), setCompleted };
+}
+
+export async function awardStickerForShare(
+  userId: string,
+  contentType: string,
+  contentId: string,
+): Promise<StickerAwardResult | null> {
+  const rule =
+    contentType === "passport"
+      ? "share_passport"
+      : contentType === "moment" || contentType.startsWith("moment")
+        ? "share_moment"
+        : null;
+  if (!rule) return null;
+  const result = await awardStickerIfEligible(userId, rule, contentId);
+  return result.awarded ? result : null;
+}
+
+async function checkSetCompletion(userId: string, setId: string): Promise<boolean> {
+  if (setId === "set-goals") return false;
+
+  const totalRow = await maybeOne<{ count: string }>(
+    "select count(*)::text as count from engagement_sticker_defs where set_id = $1",
+    [setId],
+  );
+  const ownedRow = await maybeOne<{ count: string }>(
+    `
+      select count(*)::text as count
+      from engagement_user_stickers us
+      join engagement_sticker_defs sd on sd.id = us.sticker_id
+      where us.user_id = $1 and sd.set_id = $2
+    `,
+    [userId, setId],
+  );
+  const total = Number(totalRow?.count ?? 0);
+  const owned = Number(ownedRow?.count ?? 0);
+  if (total === 0 || owned < total) return false;
+
+  const already = await maybeOne<{ set_id: string }>(
+    "select set_id from engagement_sticker_set_completions where user_id = $1 and set_id = $2",
+    [userId, setId],
+  );
+  if (already) return false;
+
+  await query(
+    "insert into engagement_sticker_set_completions (user_id, set_id) values ($1, $2)",
+    [userId, setId],
+  );
+  await ensurePassport(userId);
+  await query(
+    "update engagement_passports set xp = xp + $2, updated_at = now() where user_id = $1",
+    [userId, SET_COMPLETION_BONUS_XP],
+  );
+  await mirrorPassportXp(userId, SET_COMPLETION_BONUS_XP, `sticker-set-${setId}`);
+  return true;
+}
+
+export async function getStickerAlbum(userId: string): Promise<{
+  sets: StickerAlbumSet[];
+  totalOwned: number;
+  recentEarns: AlbumSticker[];
+}> {
+  requireDatabase();
+  const defs = await listStickerDefs();
+  const ownedRows = await query<{ sticker_id: string; earned_at: string }>(
+    "select sticker_id, earned_at from engagement_user_stickers where user_id = $1",
+    [userId],
+  );
+  const ownedMap = new Map(ownedRows.map((r) => [r.sticker_id, r.earned_at]));
+
+  const staticBySet = new Map<string, AlbumSticker[]>();
+  for (const def of defs) {
+    const list = staticBySet.get(def.setId) ?? [];
+    list.push({
+      id: def.id,
+      title: def.title,
+      description: def.description,
+      rarity: def.rarity,
+      imageUrl: def.imageUrl,
+      owned: ownedMap.has(def.id),
+      earnedAt: ownedMap.get(def.id),
+      kind: "static",
+    });
+    staticBySet.set(def.setId, list);
+  }
+
+  const momentRows = await query<{
+    external_id: string;
+    title: string;
+    player: string | null;
+    minute: number | null;
+    rarity: string;
+    image_url: string | null;
+    serial_label: string | null;
+    match_external_id: string;
+    claimed: boolean;
+    earned_at: string | null;
+  }>(
+    `
+      select
+        em.external_id,
+        em.title,
+        em.player,
+        em.minute,
+        em.rarity,
+        em.image_url,
+        em.serial_label,
+        m.external_id as match_external_id,
+        exists (
+          select 1 from engagement_moment_claims c
+          where c.moment_id = em.id and c.user_id = $1
+        ) as claimed,
+        (
+          select c.created_at from engagement_moment_claims c
+          where c.moment_id = em.id and c.user_id = $1
+          limit 1
+        ) as earned_at
+      from engagement_moments em
+      join matches m on m.id = em.match_id
+      order by em.created_at desc
+      limit 30
+    `,
+    [userId],
+  );
+
+  const goalStickers: AlbumSticker[] = momentRows.map((m) => ({
+    id: m.external_id,
+    title: m.title,
+    description: m.player ? `${m.player} · ${m.minute ?? 0}'` : "Goal drop",
+    rarity: m.rarity,
+    imageUrl: m.image_url ?? "/moment-volley.jpg",
+    owned: m.claimed,
+    earnedAt: m.earned_at ?? undefined,
+    kind: "moment",
+    serial: m.serial_label ?? undefined,
+    claimed: m.claimed,
+    matchId: m.match_external_id,
+    player: m.player ?? undefined,
+    minute: m.minute ?? undefined,
+  }));
+
+  const goalOwned = goalStickers.filter((s) => s.owned).length;
+  const sets: StickerAlbumSet[] = [
+    {
+      id: "set-goals",
+      title: STICKER_SET_TITLES["set-goals"],
+      owned: goalOwned,
+      total: goalStickers.length,
+      stickers: goalStickers,
+    },
+  ];
+
+  for (const setId of ["set-matchday", "set-growth"] as const) {
+    const stickers = staticBySet.get(setId) ?? [];
+    sets.push({
+      id: setId,
+      title: STICKER_SET_TITLES[setId],
+      owned: stickers.filter((s) => s.owned).length,
+      total: stickers.length,
+      stickers,
+    });
+  }
+
+  const recentEarns = [
+    ...ownedRows
+      .map((r) => {
+        const def = defs.find((d) => d.id === r.sticker_id);
+        if (!def) return null;
+        return {
+          id: def.id,
+          title: def.title,
+          description: def.description,
+          rarity: def.rarity,
+          imageUrl: def.imageUrl,
+          owned: true,
+          earnedAt: r.earned_at,
+          kind: "static" as const,
+        };
+      })
+      .filter((s): s is AlbumSticker => s !== null),
+    ...goalStickers.filter((s) => s.owned && s.earnedAt),
+  ]
+    .sort((a, b) => new Date(b.earnedAt ?? 0).getTime() - new Date(a.earnedAt ?? 0).getTime())
+    .slice(0, 8);
+
+  const totalOwned = sets.reduce((sum, s) => sum + s.owned, 0);
+  return { sets, totalOwned, recentEarns };
 }

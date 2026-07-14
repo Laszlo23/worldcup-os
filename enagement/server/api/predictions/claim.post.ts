@@ -3,6 +3,7 @@ import { claimPredictionSchema } from "@shared/lib/validators/api";
 import { executeClaimPayout } from "@shared/server/blockchain/escrow";
 import { hasDatabase } from "@shared/server/config/env";
 import { maybeOne, query, withTransaction } from "@shared/server/db/postgres";
+import { screenWallet } from "@shared/server/services/webacy-screening";
 import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireMutationOrigin } from "@shared/server/middleware/http";
 
 export default defineHandler(async (event) => {
@@ -10,6 +11,9 @@ export default defineHandler(async (event) => {
   if (!requireMutationOrigin(event)) return errorResponse("Forbidden", 403);
   const wallet = await requireSession(event);
   if (wallet instanceof Response) return wallet;
+
+  const screening = await screenWallet(wallet, "withdraw");
+  if (!screening.allowed) return errorResponse(screening.reason, 403);
 
   let body: unknown;
   try {

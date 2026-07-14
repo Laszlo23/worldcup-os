@@ -4,6 +4,7 @@ import { Zap, Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api/client";
 import { queryKeys, type EngagementPoll } from "@/lib/queries/hooks";
+import { showStickerEarnToast } from "@/components/matchmind/StickerEarnToast";
 import { toast } from "sonner";
 
 function formatCountdown(seconds: number) {
@@ -29,16 +30,22 @@ export function PredictionCard({ p }: { p: EngagementPoll }) {
 
   const vote = useMutation({
     mutationFn: async (c: "yes" | "no") => {
-      await apiFetch(`/api/engagement/polls/${p.id}/vote`, {
+      const res = await apiFetch<{
+        ok: boolean;
+        choice: "yes" | "no";
+        newSticker?: { id: string; title: string; rarity: string; imageUrl: string };
+      }>(`/api/engagement/polls/${p.id}/vote`, {
         method: "POST",
         body: JSON.stringify({ choice: c }),
       });
-      return c;
+      return res;
     },
-    onSuccess: (c) => {
-      setChoice(c);
+    onSuccess: (res) => {
+      setChoice(res.choice);
       toast.success("Vote locked in");
+      if (res.newSticker) showStickerEarnToast(res.newSticker);
       void qc.invalidateQueries({ queryKey: queryKeys.passport });
+      void qc.invalidateQueries({ queryKey: queryKeys.stickerAlbum });
       void qc.invalidateQueries({ queryKey: queryKeys.polls(p.matchId) });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Vote failed"),
@@ -49,7 +56,7 @@ export function PredictionCard({ p }: { p: EngagementPoll }) {
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 12 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       className="relative overflow-hidden rounded-2xl border border-border bg-card p-4"
     >
@@ -86,7 +93,7 @@ export function PredictionCard({ p }: { p: EngagementPoll }) {
           type="button"
           disabled={choice !== null || countdown === 0 || vote.isPending || p.resolved}
           onClick={() => vote.mutate("yes")}
-          className={`flex flex-col items-center justify-center rounded-lg px-3 py-2.5 text-sm font-bold uppercase italic tracking-tight transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`flex min-h-[44px] flex-col items-center justify-center rounded-lg px-3 py-2.5 text-sm font-bold uppercase italic tracking-tight transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
             choice === "yes" ? "bg-primary text-primary-foreground" : "bg-foreground text-background"
           }`}
         >
@@ -99,7 +106,7 @@ export function PredictionCard({ p }: { p: EngagementPoll }) {
           type="button"
           disabled={choice !== null || countdown === 0 || vote.isPending || p.resolved}
           onClick={() => vote.mutate("no")}
-          className={`flex flex-col items-center justify-center rounded-lg border border-border px-3 py-2.5 text-sm font-bold uppercase italic tracking-tight transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`flex min-h-[44px] flex-col items-center justify-center rounded-lg border border-border px-3 py-2.5 text-sm font-bold uppercase italic tracking-tight transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
             choice === "no" ? "border-primary bg-primary/15 text-primary" : "bg-background text-foreground"
           }`}
         >
@@ -119,7 +126,7 @@ export function PredictionCard({ p }: { p: EngagementPoll }) {
       <div className="relative mt-4">
         <div className="h-1 overflow-hidden rounded-full bg-muted">
           <motion.div
-            initial={{ width: 0 }}
+            initial={false}
             animate={{ width: `${pct}%` }}
             className="h-full bg-accent"
           />

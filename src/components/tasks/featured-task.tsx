@@ -29,7 +29,7 @@ export function FeaturedTask({ task }: { task: CommunityTask }) {
             className="bg-gold text-gold-foreground hover:bg-gold/90 border-0 gap-1 ml-auto"
             onClick={() => {
               window.open(task.ctaUrl, "_blank", "noopener");
-              completeTask(task.id);
+              void completeTask(task.id);
             }}
           >
             {task.ctaLabel} <ExternalLink className="h-4 w-4" />

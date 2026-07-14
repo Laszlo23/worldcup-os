@@ -30,13 +30,13 @@ set_kv NEXT_PUBLIC_API_URL https://agentx.buildingcultureid.space
 set_kv NEXT_PUBLIC_WS_URL wss://agentx.buildingcultureid.space/ws
 set_kv PORT 3041
 set_kv API_PORT 8041
-set_kv CORS_ORIGINS https://agentx.buildingcultureid.space,http://127.0.0.1:3041
+set_kv CORS_ORIGINS https://agentx.buildingcultureid.space,http://127.0.0.1:3041,http://localhost:3041
 set_kv APP_URL https://agentx.buildingcultureid.space
 set_kv SOLANA_NETWORK devnet
 set_kv NEXT_PUBLIC_SOLANA_NETWORK devnet
 set_kv NEXT_PUBLIC_SOLANA_RPC_URL https://api.devnet.solana.com
 
-for key in TXLINE_GUEST_JWT TXLINE_API_TOKEN TXLINE_API_ORIGIN USDC_MINT NEXT_PUBLIC_USDC_MINT SETTLEMENT_AUTHORITY_SECRET ANCHOR_AUTHORITY_SECRET SESSION_SECRET; do
+for key in TXLINE_GUEST_JWT TXLINE_API_TOKEN TXLINE_API_ORIGIN USDC_MINT NEXT_PUBLIC_USDC_MINT SETTLEMENT_AUTHORITY_SECRET ANCHOR_AUTHORITY_SECRET SESSION_SECRET AGENT_8004_ASSET WEBACY_API_KEY WEBACCEL_API_KEY WEBACY_ENABLED SOLANA_RPC_URL; do
   if [ -f "$WMOS_ENV" ] && grep -q "^${key}=" "$WMOS_ENV"; then
     val="$(grep "^${key}=" "$WMOS_ENV" | head -1 | cut -d= -f2-)"
     set_kv "$key" "$val"
@@ -55,6 +55,18 @@ else
 fi
 
 grep -q '^SESSION_SECRET=' "$ENV_FILE" || set_kv SESSION_SECRET "$(openssl rand -hex 32)"
+
+if grep -q '^AGENT_8004_ASSET=' "$ENV_FILE"; then
+  asset="$(grep '^AGENT_8004_ASSET=' "$ENV_FILE" | head -1 | cut -d= -f2-)"
+  set_kv NEXT_PUBLIC_AGENT_8004_ASSET "$asset"
+fi
+
+# Normalize Webacy key name (accept legacy WEBACCEL_API_KEY from WMOS)
+if ! grep -q '^WEBACY_API_KEY=' "$ENV_FILE" && grep -q '^WEBACCEL_API_KEY=' "$ENV_FILE"; then
+  val="$(grep '^WEBACCEL_API_KEY=' "$ENV_FILE" | head -1 | cut -d= -f2-)"
+  set_kv WEBACY_API_KEY "$val"
+fi
+grep -q '^WEBACY_ENABLED=' "$ENV_FILE" || set_kv WEBACY_ENABLED true
 
 ln -sf "$ENV_FILE" "$REMOTE_BASE/services/ai-engine/.env"
 echo "Patched $ENV_FILE"

@@ -1,9 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, Lock, Trophy } from "lucide-react";
 import { AppShell } from "@/components/matchmind/AppShell";
-import { usePassport } from "@/lib/queries/hooks";
+import { StickerShelf } from "@/components/matchmind/StickerAlbum";
+import { usePassport, useStickerAlbum } from "@/lib/queries/hooks";
 import { useAppStore } from "@/lib/store";
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet";
+import { ShareActions } from "@/components/social/share-actions";
 
 export const Route = createFileRoute("/passport")({
   component: PassportScreen,
@@ -12,6 +14,7 @@ export const Route = createFileRoute("/passport")({
 function PassportScreen() {
   const wallet = useAppStore((s) => s.wallet);
   const { data, isPending } = usePassport(wallet.connected);
+  const { data: album } = useStickerAlbum(wallet.connected);
   const passport = data?.passport;
 
   if (!wallet.connected) {
@@ -60,14 +63,38 @@ function PassportScreen() {
               <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
             </div>
           </div>
+          <ShareActions contentType="passport" contentId={data.wallet} title="MatchMind Fan Passport" className="relative mt-4" />
         </div>
       </section>
 
       <section className="mt-5 px-4 grid grid-cols-2 gap-2">
         <StatBig label="Predictions Won" value={passport.predictionsWon} accent />
-        <StatBig label="Moments" value={passport.momentsClaimed} />
+        <StatBig label="Stickers" value={album?.totalOwned ?? passport.momentsClaimed} />
         <StatBig label="Stadiums" value={passport.stadiumVerified} />
         <StatBig label="Streak" value={passport.streak} />
+      </section>
+
+      <section className="mt-6 px-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+            Sticker Shelf
+          </h3>
+          <Link to="/moments" className="text-xs font-semibold text-primary">
+            Full album
+          </Link>
+        </div>
+        <div className="mt-3">
+          <StickerShelf
+            stickers={(album?.recentEarns ?? []).map((s) => ({
+              id: s.id,
+              title: s.title,
+              rarity: s.rarity,
+              imageUrl: s.imageUrl,
+              owned: s.owned,
+              serial: s.serial,
+            }))}
+          />
+        </div>
       </section>
 
       <section className="mt-6 px-4">

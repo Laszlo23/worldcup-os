@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import "@solana/wallet-adapter-react-ui/styles.css";
 import { WalletUiReadyProvider } from "@/lib/wallet/wallet-ui-ready";
 import { WalletSessionRestore } from "@/lib/wallet/session-restore";
 import { WalletTxBridge } from "@/lib/wallet/tx-bridge";

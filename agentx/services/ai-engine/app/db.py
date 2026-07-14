@@ -288,20 +288,116 @@ async def get_prediction(prediction_id: str) -> dict | None:
     )
 
 
+async def run_agent_migrations() -> None:
+    await execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS owner_wallet TEXT")
+    await execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT false")
+    await execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS display_name TEXT")
+    await execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS earn_agent_id TEXT")
+    await execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS earn_username TEXT")
+    await execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS callback_url TEXT")
+    await execute("ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_heartbeat_at TIMESTAMPTZ")
+    await execute(
+        """
+        UPDATE agents SET is_system = true, strategy_config = '{"min_confidence": 78, "stake_pct": 0.02, "side": "home", "min_ev": 0.05}'::jsonb
+        WHERE name = 'Alpha' AND is_system = false
+        """
+    )
+    await execute(
+        """
+        UPDATE agents SET is_system = true, strategy_config = '{"min_confidence": 78, "stake_pct": 0.03, "side": "away", "min_ev": 0.05}'::jsonb
+        WHERE name = 'Beta' AND is_system = false
+        """
+    )
+
+
 async def ensure_agents() -> list[dict]:
-    agents = await fetch_all("SELECT * FROM agents ORDER BY name")
+    await run_agent_migrations()
+    agents = await fetch_all("SELECT * FROM agents WHERE is_system = true ORDER BY name")
     if agents:
         return agents
     await execute(
         """
-        INSERT INTO agents (id, name, strategy, strategy_config, balance, created_at, updated_at)
+        INSERT INTO agents (id, name, strategy, strategy_config, balance, is_system, created_at, updated_at)
         VALUES
-          (gen_random_uuid()::text, 'Alpha', 'conservative', '{"min_confidence": 75, "stake_pct": 0.02, "side": "home"}'::jsonb, 10000, NOW(), NOW()),
-          (gen_random_uuid()::text, 'Beta', 'contrarian', '{"min_confidence": 60, "stake_pct": 0.05, "side": "away"}'::jsonb, 10000, NOW(), NOW())
+          (gen_random_uuid()::text, 'Alpha', 'conservative', '{"min_confidence": 78, "stake_pct": 0.02, "side": "home", "min_ev": 0.05}'::jsonb, 10000, true, NOW(), NOW()),
+          (gen_random_uuid()::text, 'Beta', 'contrarian', '{"min_confidence": 78, "stake_pct": 0.03, "side": "away", "min_ev": 0.05}'::jsonb, 10000, true, NOW(), NOW())
         ON CONFLICT (name) DO NOTHING
         """
     )
-    return await fetch_all("SELECT * FROM agents ORDER BY name")
+    return await fetch_all("SELECT * FROM agents WHERE is_system = true ORDER BY name")
+
+
+async def list_trading_agents() -> list[dict]:
+    await run_agent_migrations()
+    return await fetch_all("SELECT * FROM agents ORDER BY roi DESC, name ASC")
+
+
+async def get_agent_by_name(name: str) -> dict | None:
+    return await fetch_one("SELECT * FROM agents WHERE name = $1", name)
+
+
+async def get_agents_by_owner(owner_wallet: str) -> list[dict]:
+    return await fetch_all(
+        "SELECT * FROM agents WHERE owner_wallet = $1 ORDER BY created_at DESC",
+        owner_wallet,
+    )
+
+
+async def create_user_agent(owner_wallet: str, template: str, display_name: str | None = None) -> dict:
+    template_key = template.lower()
+    if template_key not in ("alpha", "beta"):
+        raise ValueError("template must be alpha or beta")
+    slug = f"u-{owner_wallet[:8].lower()}-{template_key}"
+    existing = await get_agent_by_name(slug)
+    if existing:
+        return existing
+    template_agent = await get_agent_by_name("Alpha" if template_key == "alpha" else "Beta")
+    if not template_agent:
+        await ensure_agents()
+        template_agent = await get_agent_by_name("Alpha" if template_key == "alpha" else "Beta")
+    config = template_agent.get("strategy_config") if template_agent else {}
+    row = await fetch_one(
+        """
+        INSERT INTO agents (id, name, strategy, strategy_config, balance, owner_wallet, is_system, display_name, created_at, updated_at)
+        VALUES (gen_random_uuid()::text, $1, $2, $3::jsonb, 10000, $4, false, $5, NOW(), NOW())
+        RETURNING *
+        """,
+        slug,
+        template_agent.get("strategy", template_key),
+        _json(config if isinstance(config, dict) else {}),
+        owner_wallet,
+        display_name or f"My {template_key.capitalize()}",
+    )
+    if not row:
+        raise ValueError("Failed to create agent")
+    return row
+
+
+async def list_decisions_for_signal(signal_id: str) -> list[dict]:
+    return await fetch_all(
+        """
+        SELECT d.*, a.name as agent_name, a.display_name, a.owner_wallet, a.is_system, s.headline
+        FROM agent_decisions d
+        JOIN agents a ON a.id = d.agent_id
+        JOIN signals s ON s.id = d.signal_id
+        WHERE d.signal_id = $1
+        ORDER BY d.created_at ASC
+        """,
+        signal_id,
+    )
+
+
+async def get_latest_anchored_prediction() -> dict | None:
+    return await fetch_one(
+        """
+        SELECT p.id, p.signal_id, c.tx_hash, c.explorer_url, c.status
+        FROM predictions p
+        JOIN on_chain_certificates c ON c.prediction_id = p.id
+        WHERE c.status = 'anchored' AND c.tx_hash IS NOT NULL
+        ORDER BY c.anchored_at DESC NULLS LAST, p.created_at DESC
+        LIMIT 1
+        """
+    )
 
 
 async def update_agent_treasury(name: str, pubkey: str, balance: float) -> None:
@@ -312,6 +408,40 @@ async def update_agent_treasury(name: str, pubkey: str, balance: float) -> None:
         """,
         pubkey,
         balance,
+        name,
+    )
+
+
+async def link_earn_agent(
+    name: str,
+    *,
+    earn_agent_id: str,
+    earn_username: str | None = None,
+    callback_url: str | None = None,
+) -> dict | None:
+    await run_agent_migrations()
+    return await fetch_one(
+        """
+        UPDATE agents
+        SET earn_agent_id = $2, earn_username = $3, callback_url = $4, updated_at = NOW()
+        WHERE name = $1
+        RETURNING *
+        """,
+        name,
+        earn_agent_id,
+        earn_username,
+        callback_url,
+    )
+
+
+async def touch_agent_heartbeat(name: str) -> dict | None:
+    await run_agent_migrations()
+    return await fetch_one(
+        """
+        UPDATE agents SET last_heartbeat_at = NOW(), updated_at = NOW()
+        WHERE name = $1
+        RETURNING *
+        """,
         name,
     )
 
@@ -432,3 +562,95 @@ async def get_chat_history(session_id: str, limit: int = 20) -> list[dict]:
         session_id,
         limit,
     )
+
+
+async def list_live_markets_for_match(match_id: str) -> list[dict]:
+    rows = await fetch_all(
+        """
+        select m.id, m.external_id, m.type, m.title, m.closes_at, m.window_opens_at,
+               m.resolution_kind, m.closed, m.resolved_outcome,
+               mt.status as match_status, mt.kickoff_at
+        from markets m
+        join matches mt on mt.id = m.match_id
+        where m.match_id = $1
+          and m.type like 'live_%'
+          and m.closed = false
+          and m.resolved_outcome is null
+          and (m.closes_at is null or m.closes_at > now())
+        order by m.closes_at asc
+        limit 3
+        """,
+        match_id,
+    )
+    result = []
+    for row in rows:
+        options = await fetch_all(
+            "select external_id, label, price from market_options where market_id = $1 order by label asc",
+            row["id"],
+        )
+        result.append({**row, "options": options})
+    return result
+
+
+async def get_market_by_external_id(external_id: str) -> dict | None:
+    return await fetch_one(
+        """
+        select m.*, mt.status as match_status, mt.kickoff_at, mt.external_id as match_external_id
+        from markets m
+        join matches mt on mt.id = m.match_id
+        where m.external_id = $1
+        """,
+        external_id,
+    )
+
+
+async def ensure_user(wallet_pubkey: str) -> dict:
+    row = await fetch_one("select id, wallet_pubkey from users where wallet_pubkey = $1", wallet_pubkey)
+    if row:
+        return row
+    return await fetch_one(
+        """
+        insert into users (wallet_pubkey)
+        values ($1)
+        returning id, wallet_pubkey
+        """,
+        wallet_pubkey,
+    ) or {}
+
+
+async def prediction_tx_exists(tx_signature: str) -> bool:
+    row = await fetch_one("select id from predictions where tx_signature = $1 limit 1", tx_signature)
+    return row is not None
+
+
+async def insert_usdc_prediction(data: dict) -> dict:
+    row = await fetch_one(
+        """
+        insert into predictions (
+          external_id, user_id, market_id, match_id, option_id, outcome_label,
+          amount, price, status, escrow_pda, tx_signature, placed_at
+        ) values (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, 'open', $9, $10, now()
+        )
+        returning id, external_id
+        """,
+        data["external_id"],
+        data["user_id"],
+        data["market_id"],
+        data["match_id"],
+        data["option_id"],
+        data["outcome_label"],
+        data["amount"],
+        data["price"],
+        data["escrow_pda"],
+        data["tx_signature"],
+    )
+    if row:
+        await execute(
+            "insert into escrows (prediction_id, amount, status) values ($1, $2, 'locked')",
+            row["id"],
+            data["amount"],
+        )
+    return row or {}
+

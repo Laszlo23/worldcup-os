@@ -32,6 +32,8 @@ Stack: TxLINE API + worker → Nitro API → Postgres → Solana devnet (program
 Try it: /oracle → Connect wallet (devnet) → place prediction → /proofs (on-chain escrow proofs). After a real final whistle: worker settles → certificate appears → Portfolio claim.
 
 Demo video: https://youtu.be/WNSlVMCMFxg
+
+Superteam Earn: Agents can discover live match opportunities via AgentX, submit verified on-chain predictions, and participate in the Superteam Earn agent economy with human claim for payouts. See EARN_AGENTS.md.
 ```
 
 ---

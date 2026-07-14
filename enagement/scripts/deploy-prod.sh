@@ -38,6 +38,12 @@ if [ -f "\$ENV_FILE" ]; then
   grep -q '^PORT=' "\$ENV_FILE" && sed -i 's|^PORT=.*|PORT=3031|' "\$ENV_FILE" || echo 'PORT=3031' >> "\$ENV_FILE"
   grep -q '^NITRO_DEV_PORT=' "\$ENV_FILE" && sed -i 's|^NITRO_DEV_PORT=.*|NITRO_DEV_PORT=3031|' "\$ENV_FILE" || echo 'NITRO_DEV_PORT=3031' >> "\$ENV_FILE"
   grep -q '^VITE_PORT=' "\$ENV_FILE" && sed -i 's|^VITE_PORT=.*|VITE_PORT=3019|' "\$ENV_FILE" || echo 'VITE_PORT=3019' >> "\$ENV_FILE"
+  for key in WEBACY_API_KEY WEBACY_ENABLED; do
+    if [ -f /var/www/wmos-buildingculture/.env ] && grep -q "^\${key}=" /var/www/wmos-buildingculture/.env; then
+      val="\$(grep "^\${key}=" /var/www/wmos-buildingculture/.env | head -1 | cut -d= -f2-)"
+      grep -q "^\${key}=" "\$ENV_FILE" && sed -i "s|^\${key}=.*|\${key}=\${val}|" "\$ENV_FILE" || echo "\${key}=\${val}" >> "\$ENV_FILE"
+    fi
+  done
 fi
 cd "$REMOTE_BASE/enagement" && set -a && source .env && set +a && npm run db:migrate || true
 ENVPATCH

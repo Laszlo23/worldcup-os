@@ -11,6 +11,7 @@ export const queryKeys = {
   polls: (matchId?: string) => ["polls", matchId ?? "all"] as const,
   moments: (matchId?: string) => ["moments", matchId ?? "all"] as const,
   passport: ["passport"] as const,
+  stickerAlbum: ["stickerAlbum"] as const,
   rewards: ["rewards"] as const,
   liveEvents: (matchId?: string) => ["liveEvents", matchId ?? "all"] as const,
   stadium: (matchId?: string) => ["stadium", matchId ?? "all"] as const,
@@ -170,6 +171,43 @@ export function usePassport(enabled = true) {
       }>("/api/engagement/passport");
       return res;
     },
+    enabled,
+    retry: false,
+  });
+}
+
+export type AlbumSticker = {
+  id: string;
+  title: string;
+  description: string;
+  rarity: string;
+  imageUrl: string;
+  owned: boolean;
+  earnedAt?: string;
+  kind: "static" | "moment";
+  serial?: string;
+  claimed?: boolean;
+  matchId?: string;
+  player?: string;
+  minute?: number;
+};
+
+export type StickerAlbumResponse = {
+  sets: {
+    id: string;
+    title: string;
+    owned: number;
+    total: number;
+    stickers: AlbumSticker[];
+  }[];
+  totalOwned: number;
+  recentEarns: AlbumSticker[];
+};
+
+export function useStickerAlbum(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.stickerAlbum,
+    queryFn: () => apiFetch<StickerAlbumResponse>("/api/engagement/stickers/album"),
     enabled,
     retry: false,
   });

@@ -1,70 +1,71 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { AppShell } from "@/components/trader/AppShell";
-import { GlassCard } from "@/components/trader/GlassCard";
+import { MatchRow } from "@/components/matches/match-row";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { isFinishedTabMatch, isLiveTabMatch, isUpcomingTabMatch } from "@/lib/match-phase";
 import type { Match } from "@/lib/types";
 
-function MatchRow({ match }: { match: Match }) {
-  return (
-    <GlassCard className="mb-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg">{match.homeTeam.flag}</span>
-          <div>
-            <p className="text-sm font-medium">
-              {match.homeTeam.name} vs {match.awayTeam.name}
-            </p>
-            <p className="text-xs text-muted-foreground">{match.stage}</p>
-            {match.externalId && !match.externalId.startsWith("demo-") ? (
-              <p className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-green">TxLINE · {match.externalId}</p>
-            ) : null}
-          </div>
-          <span className="text-lg">{match.awayTeam.flag}</span>
-        </div>
-        <div className="text-right">
-          {match.status === "live" ? (
-            <>
-              <Badge variant="green">LIVE</Badge>
-              <p className="mt-1 font-mono text-sm">
-                {match.scoreHome}-{match.scoreAway} · {match.minute}&apos;
-              </p>
-            </>
-          ) : match.status === "scheduled" ? (
-            <Badge variant="outline">Upcoming</Badge>
-          ) : (
-            <p className="font-mono text-sm">
-              {match.scoreHome}-{match.scoreAway}
-            </p>
-          )}
-        </div>
-      </div>
-    </GlassCard>
-  );
-}
+const MATCHES_REFETCH_MS = 45_000;
 
 export default function MatchesPage() {
-  const { data } = useQuery({ queryKey: ["matches"], queryFn: () => api.liveMatches() });
-  const matches = data?.matches || [];
-  const live = matches.filter((m) => m.status === "live");
-  const upcoming = matches.filter((m) => m.status === "scheduled");
-  const finished = matches.filter((m) => m.status === "finished");
+  const { data } = useQuery({
+    queryKey: ["matches"],
+    queryFn: () => api.liveMatches(),
+    placeholderData: (prev) => prev,
+    staleTime: 10_000,
+    refetchInterval: MATCHES_REFETCH_MS,
+  });
+
+  const matches = data?.matches ?? [];
+
+  const { live, upcoming, finished } = useMemo(() => {
+    const liveList: Match[] = [];
+    const upcomingList: Match[] = [];
+    const finishedList: Match[] = [];
+    for (const m of matches) {
+      if (isFinishedTabMatch(m)) finishedList.push(m);
+      else if (isLiveTabMatch(m)) liveList.push(m);
+      else if (isUpcomingTabMatch(m)) upcomingList.push(m);
+    }
+    return { live: liveList, upcoming: upcomingList, finished: finishedList };
+  }, [matches]);
 
   return (
     <AppShell>
       <h1 className="mb-4 text-xl font-bold">Matches</h1>
       <Tabs defaultValue="live">
         <TabsList className="w-full">
-          <TabsTrigger value="live" className="flex-1">Live</TabsTrigger>
-          <TabsTrigger value="upcoming" className="flex-1">Upcoming</TabsTrigger>
-          <TabsTrigger value="finished" className="flex-1">Finished</TabsTrigger>
+          <TabsTrigger value="live" className="flex-1">
+            Live{live.length ? ` (${live.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="upcoming" className="flex-1">
+            Upcoming
+          </TabsTrigger>
+          <TabsTrigger value="finished" className="flex-1">
+            Finished
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="live">{live.map((m) => <MatchRow key={m.id} match={m} />)}</TabsContent>
-        <TabsContent value="upcoming">{upcoming.map((m) => <MatchRow key={m.id} match={m} />)}</TabsContent>
-        <TabsContent value="finished">{finished.length ? finished.map((m) => <MatchRow key={m.id} match={m} />) : <p className="text-sm text-muted-foreground">No finished matches yet</p>}</TabsContent>
+        <TabsContent value="live">
+          {live.length ? live.map((m) => <MatchRow key={m.id} match={m} />) : (
+            <p className="text-sm text-muted-foreground">No live matches right now</p>
+          )}
+        </TabsContent>
+        <TabsContent value="upcoming">
+          {upcoming.length ? upcoming.map((m) => <MatchRow key={m.id} match={m} />) : (
+            <p className="text-sm text-muted-foreground">No upcoming matches</p>
+          )}
+        </TabsContent>
+        <TabsContent value="finished">
+          {finished.length ? (
+            finished.map((m) => <MatchRow key={m.id} match={m} />)
+          ) : (
+            <p className="text-sm text-muted-foreground">No finished matches yet</p>
+          )}
+        </TabsContent>
       </Tabs>
     </AppShell>
   );

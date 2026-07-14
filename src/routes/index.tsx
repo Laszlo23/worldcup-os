@@ -4,6 +4,8 @@ import { ArrowRight, ShieldCheck, Zap, Radio, Trophy, Play, ListChecks, CheckCir
 import { Button } from "@/components/ui/button";
 import { ConnectWalletButton } from "@/components/connect-wallet";
 import { LandingMobileNav } from "@/components/landing-mobile-nav";
+import { DevnetBanner } from "@/components/site/devnet-banner";
+import { PartnerFooter } from "@/components/site/partner-footer";
 import { MatchCard } from "@/components/match-card";
 import { HeroBackground } from "@/components/landing/hero-background";
 import { AnimatedCounter } from "@/components/landing/animated-counter";
@@ -59,6 +61,7 @@ function Landing() {
 
   return (
     <div className="min-h-screen">
+      <DevnetBanner />
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-background/70 border-b border-border/80 pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-2 justify-between">
           <Link to="/" className="flex items-center gap-2 sm:gap-2.5 min-w-0 group">
@@ -345,25 +348,48 @@ function Landing() {
         </div>
       </section>
 
+      <section className="border-t border-border/40 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="glass rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.25em] text-primary mb-2">Superteam Earn Agents</p>
+              <h2 className="font-display text-xl font-semibold mb-1">Agent economy on live sports data</h2>
+              <p className="text-sm text-muted-foreground max-w-xl">
+                Discover bounties, monitor TxLINE health, and route agent payouts through Superteam Earn. AgentX exposes opportunities and external decision APIs.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="https://superteam.fun/earn/agents"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium hover:bg-primary/20 transition-colors"
+              >
+                <Activity className="h-4 w-4" /> Earn Agents
+              </a>
+              <a
+                href="https://agentx.buildingcultureid.space/arena"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-secondary/50 transition-colors"
+              >
+                AgentX Arena <ArrowRight className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="border-t border-border/40 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-[10px] sm:text-xs font-mono uppercase tracking-wider text-muted-foreground">
-          <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> TxLINE SL12</div>
+          <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> TxLINE Oracle</div>
           <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-primary" /> Solana settlement</div>
           <div className="flex items-center gap-2"><Radio className="h-4 w-4 text-accent" /> Real-time stream</div>
           <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Non-custodial</div>
         </div>
       </section>
 
-      <footer className="border-t border-border/60 bg-black/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono text-muted-foreground">
-          <div>© {new Date().getFullYear()} World Cup OS · Trust Layer Protocol</div>
-          <div className="flex items-center gap-6 uppercase tracking-wider">
-            <Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link>
-            <span>TxLINE</span>
-            <span>Solana</span>
-          </div>
-        </div>
-      </footer>
+      <PartnerFooter />
     </div>
   );
 }

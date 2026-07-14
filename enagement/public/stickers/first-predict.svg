@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="24" fill="#1a2e1a"/>
+  <circle cx="100" cy="88" r="42" fill="#22c55e" opacity="0.9"/>
+  <path d="M88 88 L100 76 L112 88 L100 100 Z" fill="#14532d"/>
+  <text x="100" y="168" text-anchor="middle" fill="#86efac" font-family="system-ui,sans-serif" font-size="14" font-weight="800">FIRST CALL</text>
+</svg>

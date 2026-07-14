@@ -94,5 +94,19 @@ async def resolve_finished_matches() -> int:
                 roi=roi,
                 risk_score=float(decision["risk_score"]),
             )
+            if won:
+                owner = await pgdb.fetch_one(
+                    "SELECT owner_wallet FROM agents WHERE id = $1",
+                    decision["agent_id"],
+                )
+                owner_wallet = owner.get("owner_wallet") if owner else None
+                if owner_wallet:
+                    from app.superfan.client import award_agent_win
+
+                    await award_agent_win(
+                        owner_wallet,
+                        str(decision["id"]),
+                        str(decision.get("agent_name", "")),
+                    )
             resolved += 1
     return resolved
