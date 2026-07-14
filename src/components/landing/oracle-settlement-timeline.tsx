@@ -18,6 +18,7 @@ import {
   ORACLE_TIMELINE_STAGES,
   TIMELINE_STEP_MS,
 } from "./oracle-settlement-timeline-data";
+import { PROOF_REPLAY_TIMESTAMPS, PROOF_REPLAY_TIMESTAMP_HIGHLIGHT } from "./proof-engine-data";
 
 const TXLINE_DOCS_URL = "https://txline-docs.txodds.com/";
 
@@ -407,7 +408,7 @@ export function OracleSettlementTimeline() {
             viewport={{ once: true }}
             className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.3em] text-primary mb-3"
           >
-            Live Oracle Timeline
+            Proof Replay
           </motion.p>
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
@@ -416,8 +417,8 @@ export function OracleSettlementTimeline() {
             transition={{ delay: 0.06 }}
             className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold tracking-tight max-w-4xl mx-auto leading-tight"
           >
-            From stadium event → verified truth →{" "}
-            <span className="gradient-text">instant settlement</span>
+            Watch A Goal Become{" "}
+            <span className="gradient-text">Truth</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
@@ -426,8 +427,30 @@ export function OracleSettlementTimeline() {
             transition={{ delay: 0.12 }}
             className="text-muted-foreground mt-4 max-w-2xl mx-auto text-sm sm:text-base"
           >
-            Watch every sports event transform into a cryptographically verified on-chain asset.
+            Goal → proof → certificate → settlement. See how a single match event becomes a cryptographically verified on-chain asset in twenty seconds.
           </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.18 }}
+            className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 max-w-4xl mx-auto"
+          >
+            {PROOF_REPLAY_TIMESTAMPS.map((ts, i) => {
+              const highlightThrough = PROOF_REPLAY_TIMESTAMP_HIGHLIGHT[activeStep] ?? 0;
+              return (
+              <span
+                key={ts.at}
+                className={`font-mono text-[10px] sm:text-xs uppercase tracking-wider ${
+                  i <= highlightThrough ? "text-primary" : "text-muted-foreground/50"
+                }`}
+              >
+                <span className="tabular-nums text-foreground/90">{ts.at}</span> {ts.label}
+              </span>
+            );
+            })}
+          </motion.div>
         </div>
 
         <motion.div
@@ -443,7 +466,7 @@ export function OracleSettlementTimeline() {
           <div className="relative border-b border-primary/15 px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-black/50">
             <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
               <span className={`h-2 w-2 rounded-full ${playing ? "bg-primary animate-live-dot" : "bg-muted-foreground"}`} />
-              {playing ? "Live replay" : "Replay complete"}
+              {playing ? "Proof replay live" : "Proof replay complete"}
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
@@ -503,6 +526,11 @@ export function OracleSettlementTimeline() {
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button asChild size="lg" className="w-full sm:w-auto bg-gradient-primary text-primary-foreground border-0 font-mono text-xs uppercase tracking-wider gap-2 min-h-[48px] glow-primary">
+              <Link to="/replay" className="inline-flex items-center gap-2">
+                Run Full Proof Replay <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto glass neon-edge-sm font-mono text-xs uppercase tracking-wider gap-2 min-h-[48px]">
               <Link to="/proofs" className="inline-flex items-center gap-2">
                 Explore Proofs <ArrowRight className="h-4 w-4" />
               </Link>

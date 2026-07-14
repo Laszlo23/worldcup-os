@@ -8,15 +8,19 @@ import { DevnetBanner } from "@/components/site/devnet-banner";
 import { PartnerFooter } from "@/components/site/partner-footer";
 import { MatchCard } from "@/components/match-card";
 import { HeroBackground } from "@/components/landing/hero-background";
+import { HeroLiveEventFlow } from "@/components/landing/hero-live-event-flow";
 import { AnimatedCounter } from "@/components/landing/animated-counter";
+import { buildProtocolMetrics } from "@/components/landing/protocol-metrics";
+import { TxlineProofEngine } from "@/components/landing/txline-proof-engine";
+import { TxlineMoatPipeline } from "@/components/landing/txline-moat-pipeline";
 import { OraclePreview } from "@/components/landing/oracle-preview";
 import { OracleSettlementTimeline } from "@/components/landing/oracle-settlement-timeline";
-import { TrustPipeline } from "@/components/landing/trust-pipeline";
+import { AiIntelligencePreview } from "@/components/landing/ai-intelligence-preview";
 import { ProofPreview } from "@/components/landing/proof-preview";
 import { PassportPreview } from "@/components/landing/passport-preview";
 import { SoccerImage } from "@/components/soccer-image";
 import { SOCCER_MOMENTS } from "@/lib/soccer-assets";
-import { useDashboard, useHealth, useMarkets } from "@/lib/queries/hooks";
+import { useHealth, useMarkets } from "@/lib/queries/hooks";
 import { useAppStore } from "@/lib/store";
 import { isMatchFeatured, selectFeaturedMatches } from "@/lib/match-phase";
 
@@ -24,7 +28,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "World Cup OS — The Trust Layer for Sports Intelligence" },
-      { name: "description", content: "Real-time sports intelligence powered by TxLINE. Verified by cryptographic proofs. Settled automatically on Solana." },
+      { name: "description", content: "Every match event becomes a cryptographically verified asset. Real-time sports intelligence powered by TxLINE. Settled automatically on Solana." },
     ],
   }),
   component: Landing,
@@ -32,27 +36,12 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   const matches = useAppStore((s) => s.matches);
-  const { data: dashboard } = useDashboard();
   const { data: health } = useHealth();
   const { data: marketList = [] } = useMarkets();
   const featuredMatches = selectFeaturedMatches(matches, 3);
-  const totals = dashboard?.totals;
 
   const txlineHealthy = health?.txline?.status === "healthy";
-
-  const stats = {
-    matches: health?.fixtures?.total ?? totals?.liveMatches ?? matches.length,
-    predictions: totals?.predictions ?? totals?.transactions ?? 0,
-    volume: totals?.volumeToday ?? totals?.tvl ?? 0,
-    settlements: totals?.markets ?? 0,
-  };
-
-  const formatVolume = (n: number) => {
-    if (n <= 0) return "—";
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-    if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`;
-    return `$${n.toFixed(0)}`;
-  };
+  const protocolMetrics = buildProtocolMetrics(health?.fixtures?.total);
 
   const markets = marketList
     .map((mk) => ({ ...mk, match: matches.find((m) => m.id === mk.matchId) }))
@@ -77,7 +66,7 @@ function Landing() {
           </Link>
           <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground font-medium">
             <Link to="/oracle" className="hover:text-primary transition-colors">Oracle</Link>
-            <Link to="/replay" className="hover:text-foreground transition-colors">Replay</Link>
+            <Link to="/replay" className="hover:text-foreground transition-colors">Proof Replay</Link>
             <Link to="/proofs" className="hover:text-foreground transition-colors">Proofs</Link>
             <Link to="/tasks" className="hover:text-foreground transition-colors">Tasks</Link>
           </nav>
@@ -98,7 +87,7 @@ function Landing() {
         <HeroBackground />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-10 sm:pb-14">
-          <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] gap-10 lg:gap-12 items-center">
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] gap-10 lg:gap-12 items-start">
             <div className="min-w-0">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -127,7 +116,7 @@ function Landing() {
             transition={{ delay: 0.16 }}
             className="mt-5 sm:mt-6 text-base sm:text-lg text-muted-foreground max-w-2xl leading-relaxed"
           >
-            Real-time sports intelligence powered by TxLINE. Verified by cryptographic proofs. Settled automatically on Solana.
+            Every match event becomes a cryptographically verified asset. Real-time sports intelligence powered by TxLINE. Settled automatically on Solana.
           </motion.p>
 
           <motion.div
@@ -136,21 +125,14 @@ function Landing() {
             transition={{ delay: 0.24 }}
             className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-3xl"
           >
-            {[
-              { label: "Fixtures indexed", value: stats.matches, suffix: "", format: null as null | ((n: number) => string) },
-              { label: "Predictions", value: stats.predictions, suffix: "", format: null },
-              { label: "Volume", value: stats.volume, prefix: "", suffix: "", format: formatVolume },
-              { label: "Markets", value: stats.settlements, suffix: "", format: null },
-            ].map((s, i) => (
+            {protocolMetrics.map((s, i) => (
               <div key={s.label} className="terminal-panel neon-edge-sm px-3 sm:px-4 py-3 sm:py-4">
                 <div className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">{s.label}</div>
                 <div className="text-xl sm:text-2xl font-display font-bold tabular-nums text-foreground">
-                  {s.format ? (
-                    s.format(s.value)
-                  ) : s.value > 0 ? (
-                    <AnimatedCounter value={s.value} prefix={s.prefix} suffix={s.suffix} duration={1800 + i * 200} />
+                  {s.animate && s.numericValue ? (
+                    <AnimatedCounter value={s.numericValue} duration={1800 + i * 200} />
                   ) : (
-                    "—"
+                    s.value
                   )}
                 </div>
               </div>
@@ -171,52 +153,22 @@ function Landing() {
             <ConnectWalletButton size="lg" className="w-full sm:w-auto" />
             <Button asChild size="lg" variant="outline" className="w-full sm:w-auto glass neon-edge-sm gap-2 min-h-[48px] font-mono text-xs uppercase tracking-wider">
               <Link to="/replay" className="inline-flex items-center gap-2">
-                <Play className="h-4 w-4" /> Replay
+                <Play className="h-4 w-4" /> Proof Replay
               </Link>
             </Button>
           </motion.div>
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="lg:hidden mt-8"
-            >
-              <SoccerImage
-                src={SOCCER_MOMENTS.volley.src}
-                alt={SOCCER_MOMENTS.volley.alt}
-                overlay="strong"
-                className="aspect-[16/10] rounded-2xl border border-primary/25 neon-edge-sm"
-              />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="hidden lg:block"
-            >
-              <SoccerImage
-                src={SOCCER_MOMENTS.volley.src}
-                alt={SOCCER_MOMENTS.volley.alt}
-                overlay="strong"
-                loading="eager"
-                fetchPriority="high"
-                className="aspect-[4/5] rounded-2xl border border-primary/25 neon-edge-sm shadow-2xl"
-                imgClassName="object-[center_20%]"
-              />
-              <p className="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                Stadium-grade match intelligence
-              </p>
-            </motion.div>
+            <HeroLiveEventFlow />
           </div>
         </div>
       </section>
 
+      <TxlineProofEngine />
+      <TxlineMoatPipeline />
       <OraclePreview />
-
       <OracleSettlementTimeline />
+      <AiIntelligencePreview />
 
       {/* Live matches */}
       {featuredMatches.length > 0 && (
@@ -314,7 +266,6 @@ function Landing() {
         </section>
       )}
 
-      <TrustPipeline />
       <ProofPreview />
       <PassportPreview />
 
@@ -327,7 +278,7 @@ function Landing() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { icon: Radio, title: "Oracle Command Center", desc: "Live TxLINE pipeline terminal", to: "/oracle" },
-            { icon: Play, title: "Replay Mode", desc: "90-second match lifecycle demo", to: "/replay" },
+            { icon: Play, title: "Proof Replay", desc: "Watch a goal become truth — goal to certificate", to: "/replay" },
             { icon: CheckCircle2, title: "Proof Certificates", desc: "Cryptographic verification", to: "/proofs" },
             { icon: ListChecks, title: "Community Tasks", desc: "Earn points, grow the network", to: "/tasks" },
           ].map((item, i) => (

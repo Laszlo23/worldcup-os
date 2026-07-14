@@ -11,17 +11,18 @@ import { toast } from "sonner";
 import type { ReplaySession } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/replay")({
-  head: () => ({ meta: [{ title: "Replay Mode — World Cup OS" }] }),
+  head: () => ({ meta: [{ title: "Proof Replay — World Cup OS" }] }),
   component: ReplayMode,
 });
 
 const TIMELINE_STEPS = [
   { key: "kickoff", label: "0:00 Kickoff", atMs: 0 },
-  { key: "goal", label: "Goal", atMs: 15_000 },
-  { key: "odds", label: "Odds update", atMs: 30_000 },
-  { key: "whistle", label: "Final whistle", atMs: 60_000 },
-  { key: "proof", label: "Proof created", atMs: 75_000 },
-  { key: "settlement", label: "Settlement complete", atMs: 90_000 },
+  { key: "goal", label: "Goal scored", atMs: 15_000 },
+  { key: "oracle", label: "TxLINE validates source", atMs: 30_000 },
+  { key: "proof", label: "Proof generated", atMs: 45_000 },
+  { key: "merkle", label: "Merkle root created", atMs: 60_000 },
+  { key: "settlement", label: "Solana settlement complete", atMs: 75_000 },
+  { key: "certificate", label: "Certificate minted", atMs: 90_000 },
 ];
 
 const REPLAY_DURATION_MS = 90_000;
@@ -120,8 +121,10 @@ function ReplayMode() {
       </Link>
 
       <div>
-        <h1 className="text-3xl font-display font-bold">Replay mode</h1>
-        <p className="text-muted-foreground mt-1">90-second judge demo — full match lifecycle from kickoff to settlement.</p>
+        <h1 className="text-3xl font-display font-bold">Proof Replay</h1>
+        <p className="text-muted-foreground mt-1">
+          Watch a goal become truth — 90-second demo from kickoff through cryptographic proof to on-chain certificate.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -152,7 +155,7 @@ function ReplayMode() {
           onClick={() => void startReplay()}
           disabled={playing}
         >
-          <Play className="h-4 w-4" /> {playing ? "Replaying…" : "Start replay"}
+          <Play className="h-4 w-4" /> {playing ? "Replaying…" : "Start proof replay"}
         </Button>
         {session && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -184,7 +187,7 @@ function ReplayMode() {
       </Card>
 
       <Card className="glass p-6 max-w-2xl">
-        <h3 className="font-display font-semibold mb-4">Match timeline</h3>
+        <h3 className="font-display font-semibold mb-4">Proof timeline</h3>
         <div className="relative">
           <div className="absolute left-3 top-2 bottom-2 w-px bg-border" />
           <div className="space-y-4">

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 const items = [
   { title: "Oracle", url: "/oracle", icon: Radio },
-  { title: "Replay", url: "/replay", icon: Play },
+  { title: "Proof Replay", url: "/replay", icon: Play },
   { title: "Matches", url: "/matches", icon: Trophy },
   { title: "Tasks", url: "/tasks", icon: ListChecks },
   { title: "Portfolio", url: "/portfolio", icon: Wallet },

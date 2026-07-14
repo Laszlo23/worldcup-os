@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 
 const links = [
   { label: "Oracle Command Center", to: "/oracle" },
-  { label: "Replay Demo", to: "/replay" },
+  { label: "Proof Replay", to: "/replay" },
   { label: "Proof Explorer", to: "/proofs" },
   { label: "Community Tasks", to: "/tasks" },
   { label: "Dashboard", to: "/dashboard" },

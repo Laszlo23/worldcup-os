@@ -1,7 +1,7 @@
 export const SITE_NAME = "World Cup OS";
 export const SITE_TAGLINE = "Predict the World Cup. Trust the Blockchain.";
 export const SITE_DESCRIPTION =
-  "Non-custodial World Cup prediction markets powered by TxLINE oracle data and Solana escrow settlement. Place predictions on upcoming fixtures, verify proofs on-chain, and claim USDC rewards.";
+  "Every match event becomes a cryptographically verified asset. Non-custodial World Cup prediction markets powered by TxLINE oracle data and Solana escrow settlement.";
 export const SITE_URL = "https://wmos.buildingcultureid.space";
 export const SITE_OG_IMAGE = `${SITE_URL}/og-image.svg`;
 export const SITE_TWITTER = "@WorldCupOS";

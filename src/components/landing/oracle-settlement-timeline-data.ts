@@ -29,12 +29,12 @@ export const ORACLE_TIMELINE_STAGES: TimelineStage[] = [
   { id: "certificate", pipelineThrough: 6 },
 ];
 
-export const TIMELINE_REPLAY_MS = 30_000;
+export const TIMELINE_REPLAY_MS = 20_000;
 export const TIMELINE_STEP_MS = TIMELINE_REPLAY_MS / ORACLE_TIMELINE_STAGES.length;
 
 export const DEMO_EVENT = {
   home: "France",
-  away: "Morocco",
+  away: "Spain",
   scoreHome: 1,
   scoreAway: 0,
   minute: 67,
@@ -52,4 +52,15 @@ export const ORACLE_TERMINAL_LINES = [
   "✓ Event confirmed",
   "✓ Timestamp locked",
   "✓ Source validated",
+] as const;
+
+/** @deprecated Use PROOF_REPLAY_TIMESTAMPS from proof-engine-data.ts */
+export const CINEMATIC_TIMESTAMPS = [
+  { at: "00:00", label: "Goal scored" },
+  { at: "00:02", label: "TxLINE receives event" },
+  { at: "00:05", label: "Oracle validates source" },
+  { at: "00:08", label: "Proof generated" },
+  { at: "00:12", label: "Merkle root created" },
+  { at: "00:15", label: "Solana confirms" },
+  { at: "00:20", label: "Certificate minted" },
 ] as const;

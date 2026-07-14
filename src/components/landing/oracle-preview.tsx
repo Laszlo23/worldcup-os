@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Radio } from "lucide-react";
 import { useHealth, useLiveEvents } from "@/lib/queries/hooks";
-import { SoccerImage } from "@/components/soccer-image";
-import { SOCCER_MOMENTS } from "@/lib/soccer-assets";
 
 export function OraclePreview() {
   const { data: health } = useHealth();
@@ -32,13 +30,14 @@ export function OraclePreview() {
   const shown = events.slice(0, Math.min(visible, events.length));
 
   return (
-    <section className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 overflow-hidden">
-      <SoccerImage
-        src={SOCCER_MOMENTS.topbin.src}
-        alt=""
-        overlay="none"
-        className="absolute -right-20 top-1/2 -translate-y-1/2 w-[min(50vw,520px)] aspect-square opacity-[0.12] pointer-events-none hidden md:block"
-      />
+    <section className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-20 overflow-hidden border-t border-border/40">
+      <div className="text-center mb-8">
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary mb-2">TxLINE in production</p>
+        <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight">Live Oracle Feed</h2>
+        <p className="text-muted-foreground text-sm mt-2 max-w-xl mx-auto">
+          Real match events streaming through TxLINE — the verification layer behind every market and settlement.
+        </p>
+      </div>
       <div className="terminal-panel neon-edge overflow-hidden relative">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-primary/20 bg-black/40">
           <div className="flex items-center gap-3">

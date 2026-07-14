@@ -32,7 +32,7 @@ const main = [
   { title: "Oracle Command Center", url: "/oracle", icon: Radio },
   { title: "Matches", url: "/matches", icon: Trophy },
   { title: "Predictions", url: "/markets", icon: Activity },
-  { title: "Replay", url: "/replay", icon: Play },
+  { title: "Proof Replay", url: "/replay", icon: Play },
   { title: "Community Tasks", url: "/tasks", icon: ListChecks },
   { title: "Leaderboard", url: "/leaderboard", icon: Users },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },

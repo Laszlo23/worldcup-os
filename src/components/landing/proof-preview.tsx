@@ -12,10 +12,10 @@ export function ProofPreview() {
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-accent mb-3">Proof explorer</p>
           <h2 className="text-2xl sm:text-4xl font-display font-bold tracking-tight mb-4">
-            Cryptographic Match Certificates
+            From Goal To Certificate
           </h2>
           <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-            Every settled match produces a verifiable certificate — Merkle root, TxLINE signature, and Solana transaction hash. Etherscan-grade transparency for sports outcomes.
+            Goal → proof → certificate → prediction settlement → fan reputation. Every settled match produces a verifiable digital asset with Merkle root, TxLINE signature, and Solana transaction hash.
           </p>
           <SoccerImage
             src={SOCCER_MOMENTS.save.src}

@@ -1,18 +1,17 @@
-import { SOCCER_BACKGROUNDS } from "@/lib/soccer-assets";
-import { SoccerImage } from "@/components/soccer-image";
-
 export function HeroBackground() {
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden>
-      <SoccerImage
-        src={SOCCER_BACKGROUNDS.crowd.src}
-        alt=""
-        overlay="none"
-        loading="eager"
-        fetchPriority="high"
-        className="absolute inset-0 opacity-[0.22]"
-        imgClassName="object-cover object-[50%_30%] scale-105"
-      />
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        className="absolute inset-0 h-full w-full object-cover object-center opacity-40"
+        aria-hidden
+      >
+        <source src="/bgvideofix.mp4" type="video/mp4" />
+      </video>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,oklch(0.55_0.22_300/0.18),transparent_55%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_20%,oklch(0.72_0.19_155/0.12),transparent_50%)]" />
       <div className="absolute inset-0 bg-gradient-to-r from-background via-background/92 to-background/55" />
