@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, KeyRound, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { useAppStore } from "@/lib/store";
 import { resolveWalletTxFns, submitTransaction } from "@/lib/wallet/signing";
+import { getSigningStatus } from "@/lib/wallet/signing-status";
 import { ensureOnchainGas } from "@/lib/wallet/fund-wallet";
 import { Connection, Transaction } from "@solana/web3.js";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ import { dropArtForSeed } from "@/lib/soccer-assets";
 import { decodeBase64 } from "@/lib/base64";
 import { useWalletSigningReady } from "@/hooks/use-wallet-signing-ready";
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet";
+import { SmartWalletDialog } from "@/components/wallet/smart-wallet-dialog";
 import { rarityStyles } from "./sticker-styles";
 
 /** Prefer diversified drop art so the album never looks like one repeated still. */
@@ -30,11 +32,20 @@ export function MomentCard({ moment, size = "lg" }: { moment: EngagementMoment; 
   const wallet = useAppStore((s) => s.wallet);
   const signingReady = useWalletSigningReady();
   const [step, setStep] = useState<ClaimStep>("idle");
+  const [smartOpen, setSmartOpen] = useState(false);
+  const [smartMode, setSmartMode] = useState<"auto" | "create" | "unlock">("auto");
   const qc = useQueryClient();
   const claiming = step !== "idle";
+  const signingStatus = getSigningStatus();
+  const needsSigner = wallet.connected && !signingReady;
 
   const claimLabel = (() => {
-    if (!signingReady) return "Preparing wallet…";
+    if (needsSigner) {
+      if (signingStatus.kind === "unlock_smart") return "Unlock to claim";
+      if (signingStatus.kind === "create_smart") return "Create wallet to claim";
+      if (signingStatus.kind === "reconnect_extension") return "Reconnect wallet";
+      return "Unlock to claim";
+    }
     switch (step) {
       case "idle":
         return "Claim · +50 XP";
@@ -51,6 +62,31 @@ export function MomentCard({ moment, size = "lg" }: { moment: EngagementMoment; 
     }
   })();
 
+  const openSigner = () => {
+    const status = getSigningStatus();
+    if (status.kind === "unlock_smart") {
+      setSmartMode("unlock");
+      setSmartOpen(true);
+      toast.message("Unlock your smart wallet", {
+        description: "Enter your PIN so MatchMind can sign the on-chain claim memo.",
+      });
+      return;
+    }
+    if (status.kind === "create_smart") {
+      setSmartMode("create");
+      setSmartOpen(true);
+      toast.message("Create a smart wallet", {
+        description: "Your session has no signer on this device — create one (or connect Phantom).",
+      });
+      return;
+    }
+    if (status.kind === "reconnect_extension") {
+      toast.error("Reconnect Phantom / OKX", {
+        description: "Session is restored but the extension is locked — open Connect and approve.",
+      });
+    }
+  };
+
   const claim = async () => {
     if (!wallet.connected) {
       toast.error("Connect wallet first", {
@@ -59,7 +95,7 @@ export function MomentCard({ moment, size = "lg" }: { moment: EngagementMoment; 
       return;
     }
     if (!signingReady) {
-      toast.message("Wallet preparing", { description: "One moment — then try again." });
+      openSigner();
       return;
     }
 
@@ -168,14 +204,23 @@ export function MomentCard({ moment, size = "lg" }: { moment: EngagementMoment; 
             </h4>
             {!moment.claimed ? (
               wallet.connected ? (
-                <Button
-                  size="sm"
-                  className="mm-shimmer mt-3 min-h-[44px] w-full bg-gradient-to-r from-primary to-accent text-primary-foreground active:scale-[0.98]"
-                  disabled={claiming || !signingReady}
-                  onClick={() => void claim()}
-                >
-                  {claimLabel}
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    className="mm-shimmer mt-3 min-h-[44px] w-full bg-gradient-to-r from-primary to-accent text-primary-foreground active:scale-[0.98]"
+                    disabled={claiming}
+                    onClick={() => void claim()}
+                  >
+                    {needsSigner ? <KeyRound className="mr-1.5 size-3.5" /> : null}
+                    {claimLabel}
+                  </Button>
+                  {needsSigner ? (
+                    <p className="mt-1.5 text-[10px] text-white/65">
+                      Session restored — unlock (or create) a signer on this device to claim on-chain.
+                    </p>
+                  ) : null}
+                  <SmartWalletDialog open={smartOpen} onOpenChange={setSmartOpen} mode={smartMode} />
+                </>
               ) : (
                 <div className="mt-3 space-y-2">
                   <p className="text-[11px] text-white/70">Connect wallet, then sign a Solana memo to claim (+50 XP).</p>
