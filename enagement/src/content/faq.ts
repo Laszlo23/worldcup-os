@@ -40,15 +40,19 @@ export const FAQ_SECTIONS: { title: string; items: FaqItem[] }[] = [
     items: [
       {
         q: "What is Follow the Crowd / Follow the Agent?",
-        a: "One-tap vote helpers. Crowd locks the terrace majority. Agent maps the latest AgentX signal onto yes/no for the open window.",
+        a: "Crowd auto-locks XP polls with the terrace majority. Follow Agent uses AgentX signals for XP polls and — if you set a USDC budget — places real on-chain winner-market stakes before kickoff.",
       },
       {
         q: "What is Agent Pilot?",
-        a: "With your smart wallet (or any signed-in session), enable Agent Pilot to auto-lock open XP polls using AgentX signals — you stay in control and can turn it off anytime.",
+        a: "Unlock your smart wallet, turn Pilot on, and optionally set a USDC budget + stake size. The pilot signs Solana memos for XP polls and SPL transfers for USDC markets within your cap. Turn it off anytime; spent budget is tracked on Profile/Agent.",
+      },
+      {
+        q: "How do I limit what the agent spends?",
+        a: "On Agent → USDC market budget: pick a total budget (e.g. 25 USDC) and stake per pick (1–25). The pilot stops when remaining budget or wallet balance is too low. Devnet USDC only.",
       },
       {
         q: "How do 7-minute polls work?",
-        a: "While a match is live, micro-windows open for goals and cards. You sign a Solana memo to lock the vote on-chain; correct calls pay XP when the window settles. Find your history under My picks.",
+        a: "While a match is live, micro-windows open for goals and cards. You (or Agent Pilot) sign a Solana memo to lock the vote on-chain; correct calls pay XP when the window settles. Find your history under My picks.",
       },
     ],
   },

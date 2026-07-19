@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bot, Loader2, Sparkles, Zap } from "lucide-react";
@@ -8,6 +9,7 @@ import { useAppStore } from "@/lib/store";
 import { useActiveMatchState } from "@/lib/use-active-match";
 import { useMatchSignals, queryKeys } from "@/lib/queries/hooks";
 import { hasSmartWallet, isSmartWalletUnlocked } from "@/lib/wallet/smart-wallet";
+import { executeAgentPilotPlan } from "@/lib/wallet/agent-pilot";
 import { useClientMounted } from "@/hooks/use-client-mounted";
 import { setFollowMode } from "@/lib/onboarding";
 import { toast } from "sonner";
@@ -21,13 +23,24 @@ type Prefs = {
   mode: "agent" | "crowd";
   votesCast: number;
   lastTickAt: string | null;
+  usdcMarkets: boolean;
+  usdcBudget: number;
+  usdcSpent: number;
+  usdcStake: number;
+  marketsPlaced: number;
+  usdcRemaining: number;
 };
+
+const BUDGET_PRESETS = [10, 25, 50, 100];
+const STAKE_PRESETS = [1, 5, 10, 25];
 
 function AgentPage() {
   const wallet = useAppStore((s) => s.wallet);
   const qc = useQueryClient();
   const { match } = useActiveMatchState();
   const { data: signalsData } = useMatchSignals(match?.id, wallet.connected);
+  const [draftBudget, setDraftBudget] = useState<number | null>(null);
+  const [draftStake, setDraftStake] = useState<number | null>(null);
 
   const { data, isPending } = useQuery({
     queryKey: ["autoAgent"],
@@ -37,14 +50,20 @@ function AgentPage() {
   });
 
   const save = useMutation({
-    mutationFn: (body: { enabled: boolean; mode?: "agent" | "crowd" }) =>
+    mutationFn: (body: Partial<Prefs> & { enabled: boolean }) =>
       apiFetch<{ prefs: Prefs }>("/api/engagement/auto-agent", {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    onSuccess: (res) => {
+    onSuccess: (res, vars) => {
       setFollowMode(res.prefs.mode);
-      toast.success(res.prefs.enabled ? "Agent Pilot on" : "Agent Pilot off");
+      if (typeof vars.enabled === "boolean" && vars.enabled !== data?.prefs.enabled) {
+        toast.success(res.prefs.enabled ? "Agent Pilot on" : "Agent Pilot off");
+      } else {
+        toast.success("Pilot settings saved");
+      }
+      setDraftBudget(null);
+      setDraftStake(null);
       void qc.invalidateQueries({ queryKey: ["autoAgent"] });
       void qc.invalidateQueries({ queryKey: ["communityTasks"] });
     },
@@ -58,24 +77,49 @@ function AgentPage() {
   });
 
   const tick = useMutation({
-    mutationFn: () =>
-      apiFetch<{ voted: { pollId: string; choice: string }[]; skipped: number }>(
-        "/api/engagement/auto-agent",
-        {
-          method: "POST",
-          body: JSON.stringify({ action: "tick", matchId: match?.id }),
-        },
-      ),
-    onSuccess: (res) => {
-      if (res.voted.length) {
-        toast.success(`Pilot locked ${res.voted.length} poll${res.voted.length > 1 ? "s" : ""}`, {
-          description: res.voted.map((v) => `${v.choice.toUpperCase()}`).join(" · "),
+    mutationFn: async () => {
+      const plan = await apiFetch<{
+        planned?: { pollId: string; choice: "yes" | "no" }[];
+        plannedMarkets?: {
+          marketExternalId: string;
+          optionExternalId: string;
+          amount: number;
+          label: string;
+          matchExternalId: string;
+        }[];
+        skipped: number;
+      }>("/api/engagement/auto-agent", {
+        method: "POST",
+        body: JSON.stringify({ action: "tick", matchId: match?.id }),
+      });
+      const result = await executeAgentPilotPlan(plan);
+      return { plan, result };
+    },
+    onSuccess: ({ plan, result }) => {
+      if (result.lockedVotes || result.lockedMarkets) {
+        toast.success("Agent Pilot locked on-chain", {
+          description: [
+            result.lockedVotes ? `${result.lockedVotes} XP vote(s)` : null,
+            result.lockedMarkets
+              ? `${result.lockedMarkets} USDC (${result.spent}) — ${(plan.plannedMarkets ?? [])
+                  .map((m) => m.label)
+                  .join(", ")}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
         });
         void qc.invalidateQueries({ queryKey: queryKeys.polls(match?.id) });
+        void qc.invalidateQueries({ queryKey: queryKeys.myPredictions });
         void qc.invalidateQueries({ queryKey: ["autoAgent"] });
       } else {
-        toast.message("No open polls to lock", {
-          description: res.skipped ? "Waiting on signals or already voted." : "Check back when live windows open.",
+        toast.message("Nothing locked", {
+          description:
+            (plan.planned?.length || plan.plannedMarkets?.length)
+              ? "Signing failed — unlock wallet / fund USDC and retry."
+              : plan.skipped
+                ? "Waiting on signals, budget, or open pre-match markets."
+                : "Check back when windows or markets open.",
         });
       }
     },
@@ -91,7 +135,8 @@ function AgentPage() {
       <DocPageShell title="Agent" subtitle="Auto-predict with AgentX">
         <div className="space-y-4 py-12 text-center">
           <p className="text-sm text-muted-foreground">
-            Connect — ideally with a MatchMind smart wallet — to enable Agent Pilot automated XP polls.
+            Connect a MatchMind smart wallet to enable Agent Pilot — XP polls and budgeted USDC markets,
+            both signed on-chain.
           </p>
           <ConnectWalletButton size="default" />
         </div>
@@ -101,6 +146,8 @@ function AgentPage() {
 
   const prefs = data?.prefs;
   const signal = signalsData?.signals?.[0];
+  const budget = draftBudget ?? prefs?.usdcBudget ?? 0;
+  const stake = draftStake ?? prefs?.usdcStake ?? 5;
 
   return (
     <DocPageShell title="Agent" subtitle="Auto-predict with AgentX">
@@ -110,25 +157,28 @@ function AgentPage() {
           Agent Pilot
         </p>
         <h2 className="mt-1 font-display text-2xl font-bold italic tracking-tight">
-          Let the desk call windows
+          Follow Agent — with a USDC leash
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Pairs your signed-in wallet with live AgentX signals to auto-lock open XP polls while MatchMind is open.
+          Set how much test USDC the pilot may spend. It locks XP polls and pre-match winner markets
+          on Solana using your unlocked smart wallet — every tx is on-chain.
         </p>
       </header>
 
       <div className="mt-4 rounded-2xl border border-border bg-card/70 p-3 text-xs text-muted-foreground">
         {smartReady ? (
-          <p className="text-primary">Smart wallet unlocked — pilot can sign claims when drops hit.</p>
+          <p className="text-primary">
+            Smart wallet unlocked — pilot can sign XP memos and USDC escrow transfers.
+          </p>
         ) : smartExists ? (
           <p>
-            Unlock your smart wallet from the header key icon for full claim support. Poll auto-votes still work with any session.
+            Unlock your smart wallet from the header so the pilot can sign. Wallet balance:{" "}
+            <span className="font-mono text-foreground">{wallet.balance.toFixed(2)} USDC</span>
           </p>
         ) : (
           <p>
-            Tip:{" "}
-            <span className="font-semibold text-foreground">Create a smart wallet</span> for a seamless fan + agent loop —
-            no extension needed.
+            Tip: <span className="font-semibold text-foreground">Create a smart wallet</span> so Agent
+            Pilot can sign without extension popups.
           </p>
         )}
       </div>
@@ -138,12 +188,12 @@ function AgentPage() {
           <Loader2 className="size-7 animate-spin text-accent" />
         </div>
       ) : (
-        <section className="mt-5 space-y-3 rounded-2xl border border-border bg-card/70 p-4">
+        <section className="mt-5 space-y-4 rounded-2xl border border-border bg-card/70 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold">Pilot status</p>
               <p className="text-xs text-muted-foreground">
-                {prefs.votesCast} auto-votes ·{" "}
+                {prefs.votesCast} XP votes · {prefs.marketsPlaced} USDC markets ·{" "}
                 {prefs.lastTickAt
                   ? `last tick ${new Date(prefs.lastTickAt).toLocaleTimeString()}`
                   : "not ticked yet"}
@@ -152,7 +202,15 @@ function AgentPage() {
             <button
               type="button"
               disabled={save.isPending}
-              onClick={() => save.mutate({ enabled: !prefs.enabled, mode: prefs.mode })}
+              onClick={() =>
+                save.mutate({
+                  enabled: !prefs.enabled,
+                  mode: prefs.mode,
+                  usdcMarkets: prefs.usdcMarkets,
+                  usdcBudget: prefs.usdcBudget,
+                  usdcStake: prefs.usdcStake,
+                })
+              }
               className={`rounded-full px-4 py-2 text-xs font-bold uppercase italic tracking-tight ${
                 prefs.enabled
                   ? "bg-primary text-primary-foreground"
@@ -167,26 +225,155 @@ function AgentPage() {
             <ModeBtn
               active={prefs.mode === "agent"}
               label="Follow Agent"
-              detail="AgentX signals"
-              onClick={() => save.mutate({ enabled: prefs.enabled, mode: "agent" })}
+              detail="AgentX → on-chain"
+              onClick={() =>
+                save.mutate({
+                  enabled: prefs.enabled,
+                  mode: "agent",
+                  usdcMarkets: prefs.usdcMarkets,
+                  usdcBudget: prefs.usdcBudget,
+                  usdcStake: prefs.usdcStake,
+                })
+              }
             />
             <ModeBtn
               active={prefs.mode === "crowd"}
               label="Follow Crowd"
-              detail="Terrace majority"
-              onClick={() => save.mutate({ enabled: prefs.enabled, mode: "crowd" })}
+              detail="XP polls only"
+              onClick={() =>
+                save.mutate({
+                  enabled: prefs.enabled,
+                  mode: "crowd",
+                  usdcMarkets: false,
+                  usdcBudget: prefs.usdcBudget,
+                  usdcStake: prefs.usdcStake,
+                })
+              }
             />
+          </div>
+
+          <div className="rounded-2xl border border-accent/30 bg-accent/8 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-foreground">USDC market budget</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Cap how much the pilot may stake on winner markets (devnet).
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={save.isPending || prefs.mode !== "agent"}
+                onClick={() =>
+                  save.mutate({
+                    enabled: prefs.enabled,
+                    mode: prefs.mode,
+                    usdcMarkets: !prefs.usdcMarkets,
+                    usdcBudget: budget,
+                    usdcStake: stake,
+                  })
+                }
+                className={`rounded-full px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
+                  prefs.usdcMarkets && prefs.mode === "agent"
+                    ? "bg-accent text-accent-foreground"
+                    : "border border-border text-muted-foreground"
+                }`}
+              >
+                {prefs.usdcMarkets && prefs.mode === "agent" ? "USDC on" : "USDC off"}
+              </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <StatCell label="Budget" value={`${budget.toFixed(0)}`} />
+              <StatCell label="Spent" value={`${prefs.usdcSpent.toFixed(1)}`} />
+              <StatCell label="Left" value={`${Math.max(0, budget - prefs.usdcSpent).toFixed(1)}`} accent />
+            </div>
+
+            <p className="mt-3 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Total budget (USDC)
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {BUDGET_PRESETS.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setDraftBudget(b)}
+                  className={`rounded-full px-2.5 py-1 font-mono text-[10px] font-bold ${
+                    budget === b
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border text-muted-foreground"
+                  }`}
+                >
+                  {b}
+                </button>
+              ))}
+              <input
+                type="number"
+                min={0}
+                max={500}
+                step={1}
+                value={budget}
+                onChange={(e) => setDraftBudget(Number(e.target.value))}
+                className="w-16 rounded-full border border-border bg-background px-2 py-1 font-mono text-[10px]"
+                aria-label="Custom USDC budget"
+              />
+            </div>
+
+            <p className="mt-3 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Stake per pick
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {STAKE_PRESETS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setDraftStake(s)}
+                  className={`rounded-full px-2.5 py-1 font-mono text-[10px] font-bold ${
+                    stake === s
+                      ? "bg-accent text-accent-foreground"
+                      : "border border-border text-muted-foreground"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              disabled={save.isPending}
+              onClick={() =>
+                save.mutate({
+                  enabled: prefs.enabled,
+                  mode: prefs.mode,
+                  usdcMarkets: prefs.usdcMarkets,
+                  usdcBudget: budget,
+                  usdcStake: stake,
+                })
+              }
+              className="mt-3 w-full rounded-xl border border-border bg-background py-2 text-xs font-bold uppercase tracking-wide"
+            >
+              Save budget
+            </button>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Wallet: {wallet.balance.toFixed(2)} USDC · Pilot stops when budget or balance runs out.
+              Pre-match winner markets only.
+            </p>
           </div>
 
           <button
             type="button"
-            disabled={!prefs.enabled || tick.isPending}
+            disabled={!prefs.enabled || tick.isPending || !smartReady}
             onClick={() => tick.mutate()}
             className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-accent text-sm font-bold uppercase italic text-accent-foreground disabled:opacity-40"
           >
             {tick.isPending ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
             Run pilot now
           </button>
+          {!smartReady ? (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Unlock the smart wallet to run — background pilot needs an unlocked signer.
+            </p>
+          ) : null}
         </section>
       )}
 
@@ -208,7 +395,7 @@ function AgentPage() {
 
       <p className="mt-6 flex flex-wrap justify-center gap-3 text-xs font-semibold">
         <Link to="/predict" className="text-accent">
-          Open polls →
+          My picks →
         </Link>
         <Link to="/tasks" className="text-muted-foreground hover:text-accent">
           Claim enable-agent task
@@ -218,6 +405,19 @@ function AgentPage() {
         </Link>
       </p>
     </DocPageShell>
+  );
+}
+
+function StatCell({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/50 px-2 py-2">
+      <p className="font-mono text-[8px] font-bold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className={`mt-0.5 font-mono text-sm font-bold tabular-nums ${accent ? "text-primary" : ""}`}>
+        {value}
+      </p>
+    </div>
   );
 }
 

@@ -2005,7 +2005,31 @@ export type AutoAgentPrefs = {
   mode: "agent" | "crowd";
   votesCast: number;
   lastTickAt: string | null;
+  /** Place on-chain USDC winner markets within budget. */
+  usdcMarkets: boolean;
+  /** Max USDC the pilot may stake in total. */
+  usdcBudget: number;
+  /** USDC already staked by the pilot. */
+  usdcSpent: number;
+  /** Stake size per market pick. */
+  usdcStake: number;
+  marketsPlaced: number;
+  /** Remaining budget (budget − spent). */
+  usdcRemaining: number;
 };
+
+const MAX_USDC_BUDGET = 500;
+const MAX_USDC_STAKE = 50;
+
+function clampBudget(n: number): number {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(MAX_USDC_BUDGET, Math.round(n * 100) / 100);
+}
+
+function clampStake(n: number): number {
+  if (!Number.isFinite(n) || n <= 0) return 5;
+  return Math.min(MAX_USDC_STAKE, Math.max(1, Math.round(n * 100) / 100));
+}
 
 export async function getAutoAgentPrefs(userId: string): Promise<AutoAgentPrefs> {
   requireDatabase();
@@ -2014,31 +2038,62 @@ export async function getAutoAgentPrefs(userId: string): Promise<AutoAgentPrefs>
     mode: string;
     votes_cast: number;
     last_tick_at: string | null;
+    usdc_markets?: boolean;
+    usdc_budget?: string | number;
+    usdc_spent?: string | number;
+    usdc_stake?: string | number;
+    markets_placed?: number;
   }>("select * from engagement_auto_agent where user_id = $1", [userId]);
+  const usdcBudget = Number(row?.usdc_budget ?? 0);
+  const usdcSpent = Number(row?.usdc_spent ?? 0);
   return {
     enabled: Boolean(row?.enabled),
     mode: row?.mode === "crowd" ? "crowd" : "agent",
     votesCast: Number(row?.votes_cast ?? 0),
     lastTickAt: row?.last_tick_at ?? null,
+    usdcMarkets: Boolean(row?.usdc_markets),
+    usdcBudget,
+    usdcSpent,
+    usdcStake: Number(row?.usdc_stake ?? 5) || 5,
+    marketsPlaced: Number(row?.markets_placed ?? 0),
+    usdcRemaining: Math.max(0, usdcBudget - usdcSpent),
   };
 }
 
 export async function setAutoAgentPrefs(
   userId: string,
-  prefs: { enabled: boolean; mode?: "agent" | "crowd" },
+  prefs: {
+    enabled: boolean;
+    mode?: "agent" | "crowd";
+    usdcMarkets?: boolean;
+    usdcBudget?: number;
+    usdcStake?: number;
+  },
 ): Promise<AutoAgentPrefs> {
   requireDatabase();
   const mode = prefs.mode === "crowd" ? "crowd" : "agent";
+  const existing = await getAutoAgentPrefs(userId);
+  const usdcMarkets = typeof prefs.usdcMarkets === "boolean" ? prefs.usdcMarkets : existing.usdcMarkets;
+  const usdcBudget =
+    typeof prefs.usdcBudget === "number" ? clampBudget(prefs.usdcBudget) : existing.usdcBudget;
+  const usdcStake =
+    typeof prefs.usdcStake === "number" ? clampStake(prefs.usdcStake) : existing.usdcStake;
+
   await query(
     `
-      insert into engagement_auto_agent (user_id, enabled, mode, updated_at)
-      values ($1, $2, $3, now())
+      insert into engagement_auto_agent (
+        user_id, enabled, mode, usdc_markets, usdc_budget, usdc_stake, updated_at
+      )
+      values ($1, $2, $3, $4, $5, $6, now())
       on conflict (user_id) do update
         set enabled = excluded.enabled,
             mode = excluded.mode,
+            usdc_markets = excluded.usdc_markets,
+            usdc_budget = excluded.usdc_budget,
+            usdc_stake = excluded.usdc_stake,
             updated_at = now()
     `,
-    [userId, prefs.enabled, mode],
+    [userId, prefs.enabled, mode, usdcMarkets, usdcBudget, usdcStake],
   );
   return getAutoAgentPrefs(userId);
 }
@@ -2061,7 +2116,49 @@ function mapSignalToChoice(
   return yesShare >= 0.5 ? "yes" : "no";
 }
 
-/** Plan auto-votes only — client must submit each vote on-chain via the poll vote API. */
+export type PlannedUsdcMarket = {
+  marketExternalId: string;
+  optionExternalId: string;
+  amount: number;
+  label: string;
+  matchExternalId: string;
+};
+
+function mapSignalToMarketOption(
+  outcomes: { id: string; label: string }[],
+  signal: { headline: string; prediction: string; confidence: number; type: string } | null,
+  mode: "agent" | "crowd",
+): { id: string; label: string } | null {
+  if (!outcomes.length) return null;
+  if (mode === "crowd") {
+    // Crowd mode without live odds → skip USDC (needs agent conviction).
+    return null;
+  }
+  if (!signal || Number(signal.confidence) < 52) return null;
+  const text = `${signal.headline} ${signal.prediction}`.toLowerCase();
+
+  const scored = outcomes.map((o) => {
+    const label = o.label.toLowerCase();
+    let score = 0;
+    if (text.includes(label)) score += 3;
+    const tokens = label.split(/\s+/).filter((t) => t.length > 2);
+    for (const t of tokens) {
+      if (text.includes(t)) score += 1;
+    }
+    if (/draw|tie|x$/.test(label) && /draw|tie|stalemate/.test(text)) score += 3;
+    return { o, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  if (scored[0] && scored[0].score > 0) return scored[0].o;
+
+  // Bullish + no clear team → prefer first non-draw outcome
+  if (signal.type === "bullish") {
+    return outcomes.find((o) => !/draw|tie/i.test(o.label)) ?? outcomes[0] ?? null;
+  }
+  return null;
+}
+
+/** Plan XP poll votes + optional USDC markets — client signs each on-chain. */
 export async function runAutoAgentTick(
   userId: string,
   opts: {
@@ -2070,12 +2167,16 @@ export async function runAutoAgentTick(
   },
 ): Promise<{
   planned: { pollId: string; choice: "yes" | "no" }[];
+  plannedMarkets: PlannedUsdcMarket[];
   voted: { pollId: string; choice: "yes" | "no" }[];
   skipped: number;
+  prefs: AutoAgentPrefs;
 }> {
   requireDatabase();
   const prefs = await getAutoAgentPrefs(userId);
-  if (!prefs.enabled) return { planned: [], voted: [], skipped: 0 };
+  if (!prefs.enabled) {
+    return { planned: [], plannedMarkets: [], voted: [], skipped: 0, prefs };
+  }
 
   const polls = await listPolls(opts.matchExternalId, userId);
   const open = polls.filter((p) => !p.outcome && !p.user_choice && new Date(p.closes_at).getTime() > Date.now());
@@ -2097,12 +2198,85 @@ export async function runAutoAgentTick(
     planned.push({ pollId: poll.external_id, choice });
   }
 
+  const plannedMarkets: PlannedUsdcMarket[] = [];
+  if (prefs.usdcMarkets && prefs.usdcRemaining >= prefs.usdcStake && prefs.mode === "agent") {
+    const matchId = opts.matchExternalId ?? opts.signals[0]?.matchId;
+    if (matchId) {
+      const signal =
+        opts.signals.find((s) => s.matchId === matchId) ?? opts.signals[0] ?? null;
+      const marketRow = await maybeOne<{
+        market_external_id: string;
+        match_status: string;
+        kickoff_at: string | null;
+        closed: boolean;
+      }>(
+        `
+          select m.external_id as market_external_id, mt.status as match_status,
+                 mt.kickoff_at, m.closed
+          from markets m
+          join matches mt on mt.id = m.match_id
+          where mt.external_id = $1 and m.type = 'winner' and m.closed = false
+          limit 1
+        `,
+        [matchId],
+      );
+      const kickoffOk =
+        marketRow?.kickoff_at == null ||
+        Date.now() < new Date(marketRow.kickoff_at).getTime() - 5 * 60_000;
+      if (
+        marketRow &&
+        !marketRow.closed &&
+        marketRow.match_status === "scheduled" &&
+        kickoffOk
+      ) {
+        const already = await maybeOne<{ id: string }>(
+          `
+            select p.id from predictions p
+            join markets m on m.id = p.market_id
+            where p.user_id = $1 and m.external_id = $2 and p.status = 'open'
+            limit 1
+          `,
+          [userId, marketRow.market_external_id],
+        );
+        if (!already) {
+          const outcomes = await query<{ external_id: string; label: string }>(
+            `
+              select o.external_id, o.label
+              from market_options o
+              join markets m on m.id = o.market_id
+              where m.external_id = $1
+              order by o.created_at asc
+            `,
+            [marketRow.market_external_id],
+          );
+          const pick = mapSignalToMarketOption(
+            outcomes.map((o) => ({ id: o.external_id, label: o.label })),
+            signal,
+            prefs.mode,
+          );
+          if (pick) {
+            const amount = Math.min(prefs.usdcStake, prefs.usdcRemaining);
+            plannedMarkets.push({
+              marketExternalId: marketRow.market_external_id,
+              optionExternalId: pick.id,
+              amount,
+              label: pick.label,
+              matchExternalId: matchId,
+            });
+          } else {
+            skipped += 1;
+          }
+        }
+      }
+    }
+  }
+
   await query(
     "update engagement_auto_agent set last_tick_at = now(), updated_at = now() where user_id = $1",
     [userId],
   );
 
-  return { planned, voted: [], skipped };
+  return { planned, plannedMarkets, voted: [], skipped, prefs };
 }
 
 export async function markAutoAgentVotes(userId: string, count: number): Promise<void> {
@@ -2116,6 +2290,31 @@ export async function markAutoAgentVotes(userId: string, count: number): Promise
     `,
     [userId, count],
   );
+}
+
+/** Record USDC spent by Agent Pilot after a confirmed on-chain place. */
+export async function recordAutoAgentUsdcSpend(
+  userId: string,
+  amount: number,
+): Promise<AutoAgentPrefs | { ok: false; reason: string }> {
+  requireDatabase();
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, reason: "invalid_amount" };
+  const prefs = await getAutoAgentPrefs(userId);
+  if (!prefs.usdcMarkets) return { ok: false, reason: "usdc_markets_off" };
+  if (amount > prefs.usdcRemaining + 0.001) return { ok: false, reason: "budget_exceeded" };
+
+  await query(
+    `
+      update engagement_auto_agent
+      set usdc_spent = usdc_spent + $2,
+          markets_placed = markets_placed + 1,
+          last_tick_at = now(),
+          updated_at = now()
+      where user_id = $1
+    `,
+    [userId, amount],
+  );
+  return getAutoAgentPrefs(userId);
 }
 
 // --- Fan wishes / feedback / shoutouts ---

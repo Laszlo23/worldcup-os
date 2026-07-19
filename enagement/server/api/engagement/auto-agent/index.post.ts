@@ -1,5 +1,11 @@
 import { defineHandler } from "nitro";
-import { setAutoAgentPrefs, runAutoAgentTick } from "@shared/server/repositories/engagement";
+import {
+  getAutoAgentPrefs,
+  setAutoAgentPrefs,
+  runAutoAgentTick,
+  recordAutoAgentUsdcSpend,
+  markAutoAgentVotes,
+} from "@shared/server/repositories/engagement";
 import { upsertUser } from "@shared/server/repositories/matches";
 import { LiveDataRequiredError } from "@shared/server/config/env";
 import {
@@ -56,6 +62,11 @@ export default defineHandler(async (event) => {
     enabled?: boolean;
     mode?: "agent" | "crowd";
     matchId?: string;
+    usdcMarkets?: boolean;
+    usdcBudget?: number;
+    usdcStake?: number;
+    amount?: number;
+    votesLocked?: number;
   }>(event);
 
   try {
@@ -71,15 +82,40 @@ export default defineHandler(async (event) => {
       return jsonResponse({ ok: true, ...result });
     }
 
-    if (typeof body?.enabled === "boolean") {
+    if (body?.action === "record-usdc") {
+      const amount = Number(body.amount);
+      const result = await recordAutoAgentUsdcSpend(user.id, amount);
+      if ("ok" in result && result.ok === false) {
+        return errorResponse(result.reason, 400);
+      }
+      return jsonResponse({ ok: true, prefs: result });
+    }
+
+    if (body?.action === "record-votes") {
+      await markAutoAgentVotes(user.id, Number(body.votesLocked ?? 0));
+      return jsonResponse({ ok: true });
+    }
+
+    const hasPrefsPatch =
+      typeof body?.enabled === "boolean" ||
+      typeof body?.usdcMarkets === "boolean" ||
+      typeof body?.usdcBudget === "number" ||
+      typeof body?.usdcStake === "number" ||
+      Boolean(body?.mode);
+
+    if (hasPrefsPatch) {
+      const current = await getAutoAgentPrefs(user.id);
       const prefs = await setAutoAgentPrefs(user.id, {
-        enabled: body.enabled,
-        mode: body.mode,
+        enabled: typeof body.enabled === "boolean" ? body.enabled : current.enabled,
+        mode: body.mode ?? current.mode,
+        usdcMarkets: body.usdcMarkets,
+        usdcBudget: body.usdcBudget,
+        usdcStake: body.usdcStake,
       });
       return jsonResponse({ ok: true, prefs });
     }
 
-    return errorResponse("Provide enabled or action=tick", 400);
+    return errorResponse("Provide enabled, budget fields, or action=tick", 400);
   } catch (err) {
     if (err instanceof LiveDataRequiredError) return errorResponse(err.message, 503);
     throw err;

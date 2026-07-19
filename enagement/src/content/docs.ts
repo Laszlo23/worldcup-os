@@ -37,9 +37,9 @@ export const DOCS_SECTIONS: DocSection[] = [
     id: "agent-pilot",
     title: "Agent Pilot",
     body: [
-      "Agent Pilot reads AgentX /api/signals and maps bullish “next goal” style headlines onto open MatchMind yes/no polls.",
-      "Enable it from the Agent page. A background tick (while the app is open) builds and signs votes for polls you have not locked yet.",
-      "Mode Agent follows signals; mode Crowd follows terrace majority. You can still override manually on any card.",
+      "Agent Pilot reads AgentX /api/signals. Mode Agent maps signals onto XP polls and optional pre-match USDC winner markets. Mode Crowd only auto-locks XP polls with terrace majority.",
+      "Set usdcBudget + usdcStake on the Agent page. The server plans placements; your unlocked smart wallet signs on-chain (memo votes + SPL USDC escrow). Spent amount is tracked and cannot exceed the budget.",
+      "Background AutoAgentRunner ticks while MatchMind is open and the smart wallet is unlocked. Manual “Run pilot now” plans and signs the next batch on-chain. See My picks for history.",
     ],
   },
   {

@@ -4,13 +4,13 @@ import { apiFetch } from "@/lib/api/client";
 import { useAppStore } from "@/lib/store";
 import { useActiveMatchId } from "@/lib/use-active-match";
 import { queryKeys } from "@/lib/queries/hooks";
-import { votePollOnChain } from "@/lib/wallet/poll-vote";
+import { executeAgentPilotPlan, type PilotPlan } from "@/lib/wallet/agent-pilot";
 import { isSmartWalletUnlocked } from "@/lib/wallet/smart-wallet";
 import { toast } from "sonner";
 
 /**
- * While Agent Pilot is enabled and the smart wallet is unlocked,
- * plan votes server-side then lock each one on-chain via the internal wallet.
+ * While Agent Pilot is enabled and the smart wallet is unlocked:
+ * plan + sign XP memos and budgeted USDC markets on-chain.
  */
 export function AutoAgentRunner() {
   const connected = useAppStore((s) => s.wallet.connected);
@@ -33,39 +33,31 @@ export function AutoAgentRunner() {
         const prefsRes = await apiFetch<{ prefs: { enabled: boolean } }>("/api/engagement/auto-agent");
         if (!prefsRes.prefs.enabled || cancelled) return;
 
-        const res = await apiFetch<{
-          planned?: { pollId: string; choice: "yes" | "no" }[];
-          voted?: { pollId: string; choice: string }[];
-        }>("/api/engagement/auto-agent", {
+        const res = await apiFetch<PilotPlan>("/api/engagement/auto-agent", {
           method: "POST",
           body: JSON.stringify({ action: "tick", matchId: matchId ?? undefined }),
         });
 
-        const planned = res.planned ?? [];
-        if (!planned.length || cancelled) return;
+        if (cancelled) return;
+        const { lockedVotes, lockedMarkets, spent } = await executeAgentPilotPlan(res);
 
-        let locked = 0;
-        for (const plan of planned) {
-          if (cancelled) break;
-          try {
-            await votePollOnChain({ pollId: plan.pollId, choice: plan.choice });
-            locked += 1;
-          } catch {
-            /* skip failed vote — poll may have closed */
-          }
-        }
-
-        if (locked > 0) {
+        if (lockedVotes > 0 || lockedMarkets > 0) {
           void qc.invalidateQueries({ queryKey: queryKeys.polls(matchId ?? undefined) });
+          void qc.invalidateQueries({ queryKey: queryKeys.myPredictions });
           void qc.invalidateQueries({ queryKey: ["autoAgent"] });
           const now = Date.now();
           if (now - lastToast.current > 20_000) {
             lastToast.current = now;
-            toast.success(`Agent Pilot locked ${locked} on-chain vote${locked > 1 ? "s" : ""}`);
+            const bits: string[] = [];
+            if (lockedVotes) bits.push(`${lockedVotes} XP vote${lockedVotes > 1 ? "s" : ""}`);
+            if (lockedMarkets) {
+              bits.push(`${lockedMarkets} USDC pick${lockedMarkets > 1 ? "s" : ""} (${spent} USDC)`);
+            }
+            toast.success(`Agent Pilot locked on-chain: ${bits.join(" · ")}`);
           }
         }
       } catch {
-        /* silent — offline / rate limit */
+        /* silent */
       } finally {
         inFlight.current = false;
       }
