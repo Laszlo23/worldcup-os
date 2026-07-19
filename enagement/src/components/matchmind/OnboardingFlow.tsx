@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   Award,
@@ -71,13 +71,6 @@ const STEPS = [
 
 type StepId = (typeof STEPS)[number]["id"];
 
-const fadeSlide = {
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-  transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const },
-};
-
 export function OnboardingFlow() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -92,32 +85,32 @@ export function OnboardingFlow() {
     setOpen(false);
   };
 
+  const goTo = (next: number) => {
+    setStep(Math.max(0, Math.min(STEPS.length - 1, next)));
+  };
+
   const stepMeta = STEPS[step]!;
   const stepId: StepId = stepMeta.id;
-  const isLast = step === STEPS.length - 1;
   const progress = (step + 1) / STEPS.length;
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? finish() : undefined)}>
-      <DialogContent className="max-w-[min(100vw-1.1rem,27rem)] overflow-hidden border-white/10 bg-transparent p-0 shadow-[0_32px_80px_-24px_oklch(0_0_0_/_0.85)] sm:rounded-[1.75rem]">
+      <DialogContent className="max-h-[min(92dvh,40rem)] max-w-[min(100vw-1.1rem,27rem)] overflow-y-auto overflow-x-hidden border-white/10 bg-transparent p-0 shadow-[0_32px_80px_-24px_oklch(0_0_0_/_0.85)] sm:rounded-[1.75rem]">
         <DialogTitle className="sr-only">Welcome to MatchMind</DialogTitle>
 
         <div className="relative overflow-hidden bg-background ambient-orbs">
           {/* Hero */}
-          <div className="relative h-[13.5rem] w-full overflow-hidden sm:h-56">
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={stepMeta.hero}
-                src={stepMeta.hero}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-                initial={{ opacity: 0, scale: 1.08 }}
-                animate={{ opacity: 1, scale: 1.14 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.7, ease: "easeOut" }}
-              />
-            </AnimatePresence>
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/55 to-background/10" />
+          <div className="relative h-44 w-full overflow-hidden sm:h-52">
+            <motion.img
+              key={stepMeta.hero}
+              src={stepMeta.hero}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              initial={{ opacity: 0.55, scale: 1.06 }}
+              animate={{ opacity: 1, scale: 1.12 }}
+              transition={{ duration: 0.85, ease: "easeOut" }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/15" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.82_0.16_210_/_0.18),transparent_55%)]" />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
 
@@ -130,22 +123,22 @@ export function OnboardingFlow() {
               </p>
             </div>
 
-            <div className="absolute bottom-4 left-5 right-5">
+            <div className="absolute bottom-3.5 left-5 right-5">
               <div className="h-1 overflow-hidden rounded-full bg-white/15">
                 <motion.div
                   className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
                   initial={false}
                   animate={{ width: `${progress * 100}%` }}
-                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 />
               </div>
-              <div className="mt-2.5 flex justify-between gap-1">
+              <div className="mt-2 grid grid-cols-4 gap-1">
                 {STEPS.map((s, i) => (
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => setStep(i)}
-                    className={`min-w-0 flex-1 text-left font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition ${
+                    onClick={() => goTo(i)}
+                    className={`truncate text-center font-mono text-[8px] font-bold uppercase tracking-[0.12em] transition sm:text-[9px] ${
                       i === step
                         ? "text-primary"
                         : i < step
@@ -164,9 +157,13 @@ export function OnboardingFlow() {
           <div className="relative px-5 pb-6 pt-5">
             <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
 
-            <AnimatePresence mode="wait">
-              <motion.div key={stepId} {...fadeSlide}>
-                <h2 className="font-display text-[1.85rem] font-bold italic leading-[1.05] tracking-tight text-foreground text-glow-primary sm:text-[2.1rem]">
+            <motion.div
+              key={stepId}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            >
+                <h2 className="font-display text-[1.75rem] font-bold italic leading-[1.05] tracking-tight text-foreground text-glow-primary sm:text-[2rem]">
                   {stepMeta.headline}
                 </h2>
                 <p className="mt-3 max-w-[22rem] text-[15px] leading-snug text-muted-foreground">
@@ -191,13 +188,10 @@ export function OnboardingFlow() {
                 ) : null}
 
                 {stepMeta.bullets.length > 0 ? (
-                  <ul className="mt-5 space-y-3">
+                  <ul className="mt-5 space-y-2.5">
                     {stepMeta.bullets.map((b, i) => (
-                      <motion.li
+                      <li
                         key={b}
-                        initial={{ opacity: 0, x: 8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.08 + i * 0.06, duration: 0.3 }}
                         className="flex items-start gap-3 text-[13px] font-medium leading-snug text-foreground/90"
                       >
                         <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/12 text-primary">
@@ -210,13 +204,13 @@ export function OnboardingFlow() {
                           )}
                         </span>
                         {b}
-                      </motion.li>
+                      </li>
                     ))}
                   </ul>
                 ) : null}
 
                 {stepMeta.chips.length > 0 ? (
-                  <div className="mt-5 flex flex-wrap gap-1.5">
+                  <div className="mt-4 flex flex-wrap gap-1.5">
                     {stepMeta.chips.map((chip) => (
                       <span
                         key={chip}
@@ -263,7 +257,7 @@ export function OnboardingFlow() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStep((s) => s + 1)}
+                      onClick={() => goTo(step + 1)}
                       className="mm-onboard-cta inline-flex min-h-[48px] flex-[1.55] items-center justify-center gap-1.5 rounded-2xl bg-primary px-3 text-sm font-bold uppercase italic tracking-tight text-primary-foreground"
                     >
                       Continue
@@ -271,8 +265,7 @@ export function OnboardingFlow() {
                     </button>
                   </div>
                 )}
-              </motion.div>
-            </AnimatePresence>
+            </motion.div>
           </div>
         </div>
       </DialogContent>
