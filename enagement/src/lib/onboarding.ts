@@ -3,8 +3,8 @@ import { setFanKit, type FanKit } from "@/lib/fan-kit";
 export type FollowMode = "crowd" | "agent" | "solo";
 export type { FanKit };
 
-/** Bumped when kit + wallet steps were added — re-show for existing fans. */
-const ONBOARDING_KEY = "matchmind-onboarding-v2";
+/** Bumped for premium football-first onboarding (emotion over crypto). */
+const ONBOARDING_KEY = "matchmind-onboarding-v3";
 const FOLLOW_MODE_KEY = "matchmind-follow-mode";
 const FAN_BADGES_KEY = "matchmind-fan-badges-v1";
 
@@ -98,7 +98,7 @@ export const FAN_BADGE_META: Record<
 > = {
   "boot-laced": {
     title: "Boots Laced",
-    detail: "Finished MatchMind onboarding",
+    detail: "Joined the MatchMind pitch",
     mark: "MM",
   },
   "crowd-rider": {

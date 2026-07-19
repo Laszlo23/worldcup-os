@@ -197,6 +197,31 @@
   background-size: 200% 100%;
   animation: mm-shimmer 3.5s linear infinite;
 }
+
+@keyframes mm-onboard-cta-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--color-primary) 0%, transparent),
+      0 12px 32px -12px color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 28px 0 color-mix(in oklab, var(--color-primary) 28%, transparent),
+      0 16px 40px -10px color-mix(in oklab, var(--color-accent) 40%, transparent);
+  }
+}
+
+.mm-onboard-cta {
+  animation: mm-onboard-cta-glow 2.8s ease-in-out infinite;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.mm-onboard-cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+.mm-onboard-cta:active {
+  transform: translateY(0) scale(0.985);
+}
 @utility mm-hairline { border: 1px solid color-mix(in oklab, white 8%, transparent); }
 @utility glass {
   background:
