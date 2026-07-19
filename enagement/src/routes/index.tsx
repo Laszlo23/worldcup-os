@@ -189,9 +189,14 @@ function MatchScreen() {
       <section className="mt-7 px-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <SectionLabel>Predict this window</SectionLabel>
-          <Link to="/predict" className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
-            Full desk <ArrowRight className="size-3.5" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <a href="/predict#mine" className="text-xs font-semibold text-primary">
+              My picks
+            </a>
+            <Link to="/predict" className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
+              Full desk <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
         </div>
 
         <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-background/50 p-1">

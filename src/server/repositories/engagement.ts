@@ -274,6 +274,69 @@ export type EngagementPollListRow = EngagementPollRow & {
   user_choice: "yes" | "no" | null;
 };
 
+export type UserPollVoteRow = {
+  pollExternalId: string;
+  matchExternalId: string;
+  question: string;
+  windowLabel: string;
+  choice: "yes" | "no";
+  outcome: "yes" | "no" | "void" | null;
+  xpAwarded: number;
+  txSignature: string | null;
+  createdAt: string;
+  closesAt: string;
+};
+
+/** History of XP poll votes for the signed-in fan. */
+export async function listUserPollVotes(userId: string, limit = 40): Promise<UserPollVoteRow[]> {
+  requireDatabase();
+  const rows = await query<{
+    poll_external_id: string;
+    match_external_id: string;
+    question: string;
+    window_label: string;
+    choice: "yes" | "no";
+    outcome: "yes" | "no" | "void" | null;
+    xp_awarded: number;
+    tx_signature: string | null;
+    created_at: string;
+    closes_at: string;
+  }>(
+    `
+      select
+        p.external_id as poll_external_id,
+        m.external_id as match_external_id,
+        p.question,
+        p.window_label,
+        v.choice,
+        p.outcome,
+        v.xp_awarded,
+        v.tx_signature,
+        v.created_at,
+        p.closes_at
+      from engagement_poll_votes v
+      join engagement_polls p on p.id = v.poll_id
+      join matches m on m.id = p.match_id
+      where v.user_id = $1
+      order by v.created_at desc
+      limit $2
+    `,
+    [userId, Math.min(80, Math.max(1, limit))],
+  );
+  return rows.map((r) => ({
+    pollExternalId: r.poll_external_id,
+    matchExternalId: r.match_external_id,
+    question: r.question,
+    windowLabel: r.window_label,
+    choice: r.choice,
+    outcome: r.outcome,
+    xpAwarded: Number(r.xp_awarded ?? 0),
+    txSignature: r.tx_signature,
+    createdAt: r.created_at,
+    closesAt: r.closes_at,
+  }));
+}
+
 export async function listPolls(
   matchExternalId?: string,
   userId?: string,

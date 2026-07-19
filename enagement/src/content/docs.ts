@@ -9,8 +9,17 @@ export const DOCS_SECTIONS: DocSection[] = [
     id: "stack",
     title: "Product stack",
     body: [
-      "World Cup OS (WMOS) is the trust / oracle layer. AgentX is the AI trading desk. MatchMind is the fan experience — polls, drops, Crew, passport.",
+      "World Cup OS (WMOS) is the trust / oracle layer. AgentX is the AI trading desk. MatchMind is the fan experience — polls, drops, Crew, passport, collectables.",
       "Live match state and events flow from TxLINE. Engagement XP polls settle against those events in the shared Postgres ledger.",
+    ],
+  },
+  {
+    id: "my-picks",
+    title: "My picks (predictions)",
+    body: [
+      "Every fan’s history lives under Polls → My picks (also on Profile).",
+      "USDC markets: open / won / lost / settled positions from GET /api/predictions/mine. Claim wins with POST /api/predictions/claim.",
+      "XP polls: each vote is a Solana memo receipt. History from GET /api/engagement/polls/mine includes choice, outcome, XP awarded, and explorer links.",
     ],
   },
   {
@@ -20,8 +29,8 @@ export const DOCS_SECTIONS: DocSection[] = [
       "Login uses Sign-In with Solana (message signature → session cookie). Phantom, OKX, Solflare, and MatchMind smart wallets are supported.",
       "Smart wallets are generated in-browser, encrypted with your PIN (AES-GCM + PBKDF2), and never leave the device unencrypted. Export the secret once when creating.",
       "On create/unlock, MatchMind drips gas SOL + test USDC (when balances are low) and grants Lace-your-boots welcome XP.",
-      "Moment/stadium memos and USDC place-prediction txs are fee-sponsored when the settlement pool can cover rent + fees. Share locked calls for Superfan points.",
-      "XP poll votes use the session only — no per-vote transaction.",
+      "Moment/stadium memos and USDC place-prediction txs are fee-sponsored on Solana devnet when the settlement pool can cover rent + fees.",
+      "XP poll votes require an on-chain memo signed by your session wallet — verification binds the memo text to the poll + choice.",
     ],
   },
   {
@@ -29,7 +38,7 @@ export const DOCS_SECTIONS: DocSection[] = [
     title: "Agent Pilot",
     body: [
       "Agent Pilot reads AgentX /api/signals and maps bullish “next goal” style headlines onto open MatchMind yes/no polls.",
-      "Enable it from the Agent page. A background tick (while the app is open) calls the vote API for polls you have not locked yet.",
+      "Enable it from the Agent page. A background tick (while the app is open) builds and signs votes for polls you have not locked yet.",
       "Mode Agent follows signals; mode Crowd follows terrace majority. You can still override manually on any card.",
     ],
   },
@@ -57,6 +66,9 @@ export const DOCS_SECTIONS: DocSection[] = [
     body: [
       "GET /api/engagement/featured — active match",
       "GET /api/engagement/polls?matchId= — XP polls",
+      "GET /api/engagement/polls/mine — your XP poll vote history",
+      "GET /api/predictions/mine — your USDC market positions",
+      "POST /api/predictions/claim — claim a won USDC payout",
       "GET /api/engagement/signals?matchId= — AgentX proxy",
       "POST /api/engagement/auto-agent — enable / tick Agent Pilot",
       "GET|POST /api/engagement/stake — mine status & actions",

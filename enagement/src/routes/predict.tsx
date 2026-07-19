@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/matchmind/AppShell";
 import { PredictionCard } from "@/components/matchmind/PredictionCard";
 import { UsdcPredictPanel } from "@/components/matchmind/UsdcPredictPanel";
+import { MyPredictionsPanel } from "@/components/matchmind/MyPredictionsPanel";
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActiveMatchState } from "@/lib/use-active-match";
@@ -26,6 +28,8 @@ export const Route = createFileRoute("/predict")({
   component: PredictScreen,
 });
 
+type PredictTab = "xp" | "usdc" | "mine";
+
 function PredictScreen() {
   const { match, isLoading, isError, refetch } = useActiveMatchState();
   const matchId = match?.id;
@@ -38,6 +42,12 @@ function PredictScreen() {
       ? Math.round((passport.predictionsWon / passport.predictionsTotal) * 100)
       : 0;
   const usdcOpen = match ? isMatchBettable(match) : false;
+  const [tab, setTab] = useState<PredictTab>("xp");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#mine") setTab("mine");
+  }, []);
 
   if (isLoading) {
     return (
@@ -88,13 +98,20 @@ function PredictScreen() {
         </div>
       </section>
 
-      <Tabs defaultValue="xp" className="mt-4 px-4">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as PredictTab)}
+        className="mt-4 px-4 pb-6"
+      >
         <TabsList className="w-full">
           <TabsTrigger value="xp" className="flex-1">
             XP Polls
           </TabsTrigger>
           <TabsTrigger value="usdc" className="flex-1">
-            USDC {usdcOpen ? "" : "(pre-match)"}
+            USDC {usdcOpen ? "" : "(pre)"}
+          </TabsTrigger>
+          <TabsTrigger value="mine" className="flex-1">
+            My picks
           </TabsTrigger>
         </TabsList>
 
@@ -106,10 +123,18 @@ function PredictScreen() {
           </div>
           {!wallet.connected ? (
             <div className="glass flex flex-col items-center gap-2 rounded-xl p-4 text-center">
-              <p className="text-xs text-muted-foreground">Connect to vote and track your passport stats.</p>
+              <p className="text-xs text-muted-foreground">Connect to vote and track your picks.</p>
               <ConnectWalletButton size="default" />
             </div>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setTab("mine")}
+              className="block w-full rounded-xl border border-primary/25 bg-primary/8 px-3 py-2 text-left text-xs font-semibold text-primary"
+            >
+              See your locked votes & USDC positions → My picks
+            </button>
+          )}
           {isPending ? (
             <div className="flex justify-center py-10">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -135,7 +160,15 @@ function PredictScreen() {
         <TabsContent value="usdc" className="mt-4 space-y-4">
           <UsdcPredictPanel match={match} />
           <p className="text-center text-xs text-muted-foreground">
-            During the match, switch to <span className="text-foreground">XP Polls</span> for free engagement.
+            Your positions live under <span className="text-foreground">My picks</span>. During the match, use{" "}
+            <span className="text-foreground">XP Polls</span> for free engagement.
+          </p>
+        </TabsContent>
+
+        <TabsContent value="mine" className="mt-4 space-y-4">
+          <MyPredictionsPanel />
+          <p className="text-center text-xs text-muted-foreground">
+            Also on <Link to="/passport" className="font-semibold text-accent">Profile</Link> under My picks.
           </p>
         </TabsContent>
       </Tabs>

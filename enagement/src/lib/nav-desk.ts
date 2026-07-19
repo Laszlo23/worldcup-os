@@ -25,6 +25,8 @@ export type DeskLink = {
   hint: string;
   icon: LucideIcon;
   accent?: "primary" | "accent" | "live";
+  /** Optional hash fragment (e.g. #mine for My picks). */
+  hash?: string;
 };
 
 export type DeskZone = {
@@ -43,6 +45,14 @@ export const DESK_ZONES: DeskZone[] = [
     links: [
       { to: "/", label: "Live", hint: "Score & video", icon: Activity, accent: "live" },
       { to: "/predict", label: "Polls", hint: "7-min XP calls", icon: Sparkles, accent: "accent" },
+      {
+        to: "/predict",
+        label: "My picks",
+        hint: "Your votes & USDC positions",
+        icon: Trophy,
+        accent: "primary",
+        hash: "mine",
+      },
       { to: "/moments", label: "Drops", hint: "Goal stickers", icon: Layers, accent: "primary" },
       { to: "/news", label: "Ball News", hint: "Match desk", icon: Newspaper },
     ],

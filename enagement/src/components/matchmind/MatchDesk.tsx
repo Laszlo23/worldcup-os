@@ -120,7 +120,7 @@ export function MatchDesk({
                   <div className="grid grid-cols-2 gap-2 pb-2">
                     {filtered.map((link) => (
                       <DeskTile
-                        key={link.to}
+                        key={`${link.to}-${link.label}`}
                         link={link}
                         active={link.to === "/" ? pathname === "/" : pathname.startsWith(link.to)}
                         onNavigate={() => onOpenChange(false)}
@@ -155,7 +155,7 @@ export function MatchDesk({
                         <div className="grid grid-cols-2 gap-2">
                           {zone.links.map((link) => (
                             <DeskTile
-                              key={link.to}
+                              key={`${link.to}-${link.label}`}
                               link={link}
                               active={
                                 link.to === "/" ? pathname === "/" : pathname.startsWith(link.to)
@@ -197,6 +197,7 @@ function DeskTile({
   return (
     <Link
       to={link.to}
+      hash={link.hash}
       onClick={onNavigate}
       className={`flex min-h-[72px] flex-col justify-between rounded-2xl border p-3 transition active:scale-[0.98] ${accentClass(link.accent, active)}`}
     >

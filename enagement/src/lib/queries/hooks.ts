@@ -9,6 +9,8 @@ export const queryKeys = {
   match: (id: string) => ["match", id] as const,
   markets: (matchId?: string) => ["markets", matchId ?? "all"] as const,
   polls: (matchId?: string) => ["polls", matchId ?? "all"] as const,
+  myXpVotes: ["myXpVotes"] as const,
+  myPredictions: ["myPredictions"] as const,
   moments: (matchId?: string) => ["moments", matchId ?? "all"] as const,
   passport: ["passport"] as const,
   stickerAlbum: ["stickerAlbum"] as const,

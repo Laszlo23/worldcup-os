@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/matchmind/AppShell";
 import { StickerShelf } from "@/components/matchmind/StickerAlbum";
 import { InternalWalletCard } from "@/components/matchmind/InternalWalletCard";
-import { ClaimsPanel } from "@/components/matchmind/ClaimsPanel";
+import { MyPredictionsPanel } from "@/components/matchmind/MyPredictionsPanel";
 import { KitSwitcher } from "@/components/matchmind/KitSwitcher";
 import { ReferralCard } from "@/components/matchmind/ReferralCard";
 import {
@@ -171,7 +171,7 @@ function PassportScreen() {
       </section>
 
       <section className="mt-4 px-4">
-        <ClaimsPanel />
+        <MyPredictionsPanel />
       </section>
 
       <section className="mt-4 px-4">
