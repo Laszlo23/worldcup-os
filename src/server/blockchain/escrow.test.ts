@@ -5,7 +5,11 @@ import { buildPlacePredictionTx, getEscrowPdaForExternalMarket, getWorldcupProgr
 function mockConnection(accountExists: boolean): Connection {
   return {
     getAccountInfo: vi.fn().mockResolvedValue(accountExists ? { lamports: 1 } : null),
-    getLatestBlockhash: vi.fn().mockResolvedValue({ blockhash: "11111111111111111111111111111111" }),
+    getBalance: vi.fn().mockResolvedValue(0),
+    getLatestBlockhash: vi.fn().mockResolvedValue({
+      blockhash: "11111111111111111111111111111111",
+      lastValidBlockHeight: 1,
+    }),
   } as unknown as Connection;
 }
 

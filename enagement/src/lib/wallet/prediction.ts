@@ -2,6 +2,17 @@ import { Connection, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { decodeBase64 } from "../base64";
 import { apiFetch } from "../api/client";
 
+async function waitForConfirmedTx(connection: Connection, signature: string): Promise<void> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  const confirmation = await connection.confirmTransaction(
+    { signature, blockhash, lastValidBlockHeight },
+    "confirmed",
+  );
+  if (confirmation.value.err) {
+    throw new Error("Transaction failed on-chain");
+  }
+}
+
 export async function placePredictionOnChain(params: {
   marketExternalId: string;
   optionExternalId: string;
@@ -10,13 +21,16 @@ export async function placePredictionOnChain(params: {
   signTransaction: (tx: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>;
   sendTransaction?: (tx: Transaction | VersionedTransaction, connection: Connection) => Promise<string>;
 }): Promise<{ prediction: import("../types").Prediction; txSignature: string }> {
-  const built = await apiFetch<{ transaction: string; escrowPda: string }>("/api/predictions/build-tx", {
-    method: "POST",
-    body: JSON.stringify({
-      marketExternalId: params.marketExternalId,
-      amount: params.amount,
-    }),
-  });
+  const built = await apiFetch<{ transaction: string; escrowPda: string; sponsored?: boolean }>(
+    "/api/predictions/build-tx",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        marketExternalId: params.marketExternalId,
+        amount: params.amount,
+      }),
+    },
+  );
 
   const tx = Transaction.from(decodeBase64(built.transaction));
 
@@ -30,11 +44,12 @@ export async function placePredictionOnChain(params: {
   } else {
     const signed = await params.signTransaction(tx);
     signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false });
-    await connection.confirmTransaction(signature, "confirmed");
   }
 
+  await waitForConfirmedTx(connection, signature);
+
   return {
-    ...(await apiFetch<{ prediction: import("../mock/types").Prediction }>("/api/predictions/place", {
+    ...(await apiFetch<{ prediction: import("../types").Prediction }>("/api/predictions/place", {
       method: "POST",
       body: JSON.stringify({
         marketExternalId: params.marketExternalId,

@@ -65,7 +65,44 @@ export function getSoccerBackground(variant: SoccerBackdropVariant) {
   return SOCCER_BACKGROUNDS[variant];
 }
 
+/** Expanded drop art — classic moments + new pack + stadium stills */
+export const DROP_ART_POOL = [
+  "/moment-drop-slide.jpg",
+  "/moment-drop-bicycle.jpg",
+  "/moment-drop-keeper.jpg",
+  "/moment-drop-corner.jpg",
+  "/moment-topbin-curl.jpg",
+  "/moment-volley-night.jpg",
+  "/moment-save-dive.jpg",
+  "/moment-header.jpg",
+  "/moment-celebration.jpg",
+  "/moment-thunderbolt.jpg",
+  "/moment-volley.jpg",
+  "/moment-topbin.jpg",
+  "/moment-save.jpg",
+  SOCCER_BACKGROUNDS.goalCelebration.src,
+  SOCCER_BACKGROUNDS.action.src,
+  SOCCER_BACKGROUNDS.heading.src,
+  SOCCER_BACKGROUNDS.infight.src,
+  SOCCER_BACKGROUNDS.cornerKick.src,
+  SOCCER_BACKGROUNDS.closeUp.src,
+  SOCCER_BACKGROUNDS.powerfulKick.src,
+  SOCCER_BACKGROUNDS.portugalUruguay.src,
+  SOCCER_BACKGROUNDS.englandWales.src,
+  SOCCER_BACKGROUNDS.crowd.src,
+] as const;
+
+export function dropArtForSeed(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return DROP_ART_POOL[hash % DROP_ART_POOL.length]!;
+}
+
 export const SOCCER_MOMENTS = {
+  slide: { src: "/moment-drop-slide.jpg", alt: "Knee-slide goal celebration" },
+  bicycle: { src: "/moment-drop-bicycle.jpg", alt: "Bicycle kick finish" },
+  keeper: { src: "/moment-drop-keeper.jpg", alt: "Goalkeeper diving save" },
+  corner: { src: "/moment-drop-corner.jpg", alt: "Corner into the box" },
   volley: { src: "/moment-volley-night.jpg", alt: "Player strikes a volley under stadium floodlights" },
   save: { src: "/moment-save-dive.jpg", alt: "Goalkeeper makes a full-stretch save" },
   topbin: { src: "/moment-topbin-curl.jpg", alt: "Ball bends into the top corner of the net" },
@@ -75,11 +112,4 @@ export const SOCCER_MOMENTS = {
 } as const;
 
 /** Fallback thumbnails when moment has no image path */
-export const SOCCER_MOMENT_FALLBACKS = [
-  SOCCER_MOMENTS.topbin.src,
-  SOCCER_MOMENTS.volley.src,
-  SOCCER_MOMENTS.save.src,
-  SOCCER_MOMENTS.header.src,
-  SOCCER_MOMENTS.celebration.src,
-  SOCCER_MOMENTS.thunderbolt.src,
-] as const;
+export const SOCCER_MOMENT_FALLBACKS = DROP_ART_POOL;

@@ -8,6 +8,7 @@ import { useEngagementMoments, useStickerAlbum } from "@/lib/queries/hooks";
 import { useAppStore } from "@/lib/store";
 import { prefetchMatchFeed } from "@/lib/prefetch-match";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { dropArtForSeed } from "@/lib/soccer-assets";
 
 export const Route = createFileRoute("/moments")({
   loader: async ({ context }) => {
@@ -42,9 +43,9 @@ function StickerAlbumScreen() {
         <div className="glass rounded-xl p-3 text-sm text-muted-foreground">
           <p className="font-display text-sm font-semibold text-foreground">How it works</p>
           <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs">
-            <li>TxLINE goals drop collectible moments here</li>
-            <li>Connect wallet and sign a Solana memo to claim (+50 XP)</li>
-            <li>Claimed moments unlock in your sticker album & passport</li>
+            <li>TxLINE goals drop unique match art here</li>
+            <li>Connect Phantom/OKX — or tap Create for an in-app smart wallet</li>
+            <li>Sign a Solana memo to claim (+50 XP) into your album</li>
           </ol>
           <Link to="/predict" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-accent">
             Also earn XP from live polls <ArrowRight className="size-3" />
@@ -103,7 +104,10 @@ function StickerAlbumScreen() {
                 title: s.title,
                 description: s.description,
                 rarity: s.rarity,
-                imageUrl: s.imageUrl,
+                imageUrl:
+                  s.kind === "moment"
+                    ? dropArtForSeed(`${s.id}:${s.title}:${s.serial ?? ""}`)
+                    : s.imageUrl,
                 owned: s.owned,
                 earnedAt: s.earnedAt,
                 serial: s.serial,

@@ -89,10 +89,10 @@ export default function HomePage() {
               <div>
                 <p className="section-label mb-1.5 text-gold/80">AgentX · Live Arena</p>
                 <h1 className="font-display text-2xl font-bold leading-tight tracking-tight sm:text-[1.7rem]">
-                  <span className="gold-text">Match Center</span>
+                  <span className="gold-text">Signal Arena</span>
                 </h1>
                 <p className="mt-1.5 max-w-[18rem] text-sm leading-relaxed text-muted-foreground">
-                  Featured fixture, live TxLINE odds, AI recommendations — one place.
+                  Featured fixture, live TxLINE odds, AI agent picks — one desk.
                 </p>
               </div>
               <Badge variant={feedConnected ? "green" : "outline"} className="shrink-0 font-mono tracking-wider">

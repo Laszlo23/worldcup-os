@@ -1,18 +1,69 @@
-import { createMomentFromGoal, createPoll, resolveExpiredPollsFromEvents } from "../repositories/engagement";
+import {
+  createMomentFromGoal,
+  createPoll,
+  resolveExpiredPollsFromEvents,
+  resolvePollsOnTxlineEvent,
+} from "../repositories/engagement";
+import { maybeOne, query } from "../db/postgres";
+import { hasDatabase } from "../config/env";
 
-const GOAL_QUESTIONS = [
-  { text: "Will there be another goal before half-time?", kind: "goal_before_ht" as const },
-  { text: "Will the scoring team hold the lead at full time?", kind: "hold_lead" as const },
-  { text: "Will there be a goal in the next 2 minutes?", kind: "goal_in_window" as const },
-  { text: "Will the next event be a corner?", kind: "corner_in_window" as const },
+const SEVEN_MIN = 420;
+
+type PollKind =
+  | "goal_in_window"
+  | "yellow_in_window"
+  | "goal_before_ht"
+  | "hold_lead"
+  | "corner_in_window";
+
+const LIVE_MICROS: { text: string; kind: PollKind; windowLabel: string; windowSeconds: number }[] = [
+  {
+    text: "Will there be a goal in the next 7 minutes?",
+    kind: "goal_in_window",
+    windowLabel: "Next 7 min",
+    windowSeconds: SEVEN_MIN,
+  },
+  {
+    text: "Will there be a yellow card in the next 7 minutes?",
+    kind: "yellow_in_window",
+    windowLabel: "Next 7 min",
+    windowSeconds: SEVEN_MIN,
+  },
+  {
+    text: "Will the next event be a corner?",
+    kind: "corner_in_window",
+    windowLabel: "Next 7 min",
+    windowSeconds: SEVEN_MIN,
+  },
+];
+
+const SECONDARY: { text: string; kind: PollKind; windowLabel: string; windowSeconds: number }[] = [
+  {
+    text: "Will there be another goal before half-time?",
+    kind: "goal_before_ht",
+    windowLabel: "Before HT",
+    windowSeconds: SEVEN_MIN,
+  },
+  {
+    text: "Will the scoring team hold the lead at full time?",
+    kind: "hold_lead",
+    windowLabel: "To full time",
+    windowSeconds: SEVEN_MIN,
+  },
 ];
 
 const MOMENT_TITLE_SUFFIXES = ["Strike", "Finish", "Curler", "Header", "Thunderbolt", "Clinical"] as const;
 
-function pickQuestion(minute: number) {
-  if (minute < 45) return GOAL_QUESTIONS[0]!;
-  if (minute < 70) return GOAL_QUESTIONS[2]!;
-  return GOAL_QUESTIONS[1]!;
+function pickAfterGoal(minute: number) {
+  if (minute < 45) return SECONDARY[0]!;
+  if (minute < 70) return LIVE_MICROS[0]!;
+  return SECONDARY[1]!;
+}
+
+function pickRotatingMicro(salt: string) {
+  let hash = 0;
+  for (let i = 0; i < salt.length; i++) hash = (hash * 31 + salt.charCodeAt(i)) >>> 0;
+  return LIVE_MICROS[hash % LIVE_MICROS.length]!;
 }
 
 function cinematicMomentTitle(player: string | undefined, minute: number | undefined, eventKey: string): string {
@@ -33,14 +84,14 @@ export async function maybeOnGoalEngagement(params: {
   player?: string;
   minute?: number;
 }): Promise<void> {
-  const picked = pickQuestion(params.minute ?? 0);
+  const picked = pickAfterGoal(params.minute ?? 0);
   await createPoll({
     matchId: params.matchId,
     eventKey: `poll_${params.eventKey}`,
     question: picked.text,
     resolutionKind: picked.kind,
-    windowLabel: picked.kind === "goal_in_window" ? "Next 2 min" : "Live window",
-    windowSeconds: picked.kind === "goal_in_window" ? 120 : 180,
+    windowLabel: picked.windowLabel,
+    windowSeconds: picked.windowSeconds,
   });
 
   await createMomentFromGoal({
@@ -54,12 +105,81 @@ export async function maybeOnGoalEngagement(params: {
   await resolveOpenGoalWindowPolls(params.matchId);
 }
 
+export async function maybeOnYellowEngagement(params: {
+  matchId: string;
+  eventKey: string;
+}): Promise<void> {
+  await resolvePollsOnTxlineEvent(params.matchId, "yellow");
+
+  const open = await maybeOne<{ id: string }>(
+    `
+      select id from engagement_polls
+      where match_id = $1 and outcome is null and closes_at > now()
+      limit 1
+    `,
+    [params.matchId],
+  );
+  if (open) return;
+
+  const picked = LIVE_MICROS[0]!;
+  await createPoll({
+    matchId: params.matchId,
+    eventKey: `poll_after_yellow_${params.eventKey}`,
+    question: picked.text,
+    resolutionKind: picked.kind,
+    windowLabel: picked.windowLabel,
+    windowSeconds: picked.windowSeconds,
+  });
+}
+
 /** Resolve polls that asked about a goal in their window when a goal just arrived. */
 export async function resolveOpenGoalWindowPolls(matchId: string): Promise<void> {
-  const { resolvePollsOnTxlineEvent } = await import("../repositories/engagement");
   await resolvePollsOnTxlineEvent(matchId, "goal");
 }
 
+/** Ensure live matches always have at least one open 7-min XP micro. */
+export async function ensureOpenLivePolls(): Promise<number> {
+  if (!hasDatabase()) return 0;
+
+  const liveMatches = await query<{ id: string; external_id: string; minute: number | null }>(
+    `
+      select id, external_id, minute
+      from matches
+      where status in ('live', 'halftime')
+      order by kickoff desc nulls last
+      limit 12
+    `,
+  );
+
+  let created = 0;
+  for (const match of liveMatches) {
+    const open = await maybeOne<{ id: string }>(
+      `
+        select id from engagement_polls
+        where match_id = $1 and outcome is null and closes_at > now()
+        limit 1
+      `,
+      [match.id],
+    );
+    if (open) continue;
+
+    const bucket = Math.floor(Date.now() / (SEVEN_MIN * 1000));
+    const picked = pickRotatingMicro(`${match.external_id}:${bucket}:${match.minute ?? 0}`);
+    await createPoll({
+      matchId: match.id,
+      eventKey: `live_micro_${match.external_id}_${bucket}_${picked.kind}`,
+      question: picked.text,
+      resolutionKind: picked.kind,
+      windowLabel: picked.windowLabel,
+      windowSeconds: picked.windowSeconds,
+    });
+    created += 1;
+  }
+  return created;
+}
+
 export async function syncEngagementPolls(): Promise<number> {
-  return resolveExpiredPollsFromEvents();
+  const resolved = await resolveExpiredPollsFromEvents();
+  const opened = await ensureOpenLivePolls();
+  return resolved + opened;
 }

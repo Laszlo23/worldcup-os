@@ -69,6 +69,10 @@ export const env = {
   matchmindUrl: optional("MATCHMIND_URL", "https://match.buildingcultureid.space"),
   webacyApiKey: optional("WEBACY_API_KEY") || optional("WEBACCEL_API_KEY"),
   webacyEnabled: optional("WEBACY_ENABLED", "true") === "true",
+  /** Human Passport (passport.human.tech) Stamps API — EVM address scoring. */
+  humanPassportApiKey: optional("HUMAN_PASSPORT_API_KEY") || optional("PASSPORT_API_KEY"),
+  humanPassportScorerId: optional("HUMAN_PASSPORT_SCORER_ID", "100"),
+  humanPassportPassScore: Number(optional("HUMAN_PASSPORT_PASS_SCORE", "20")),
 };
 
 export function hasWebacy(): boolean {

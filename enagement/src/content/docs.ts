@@ -1,0 +1,68 @@
+export type DocSection = {
+  id: string;
+  title: string;
+  body: string[];
+};
+
+export const DOCS_SECTIONS: DocSection[] = [
+  {
+    id: "stack",
+    title: "Product stack",
+    body: [
+      "World Cup OS (WMOS) is the trust / oracle layer. AgentX is the AI trading desk. MatchMind is the fan experience — polls, drops, Crew, passport.",
+      "Live match state and events flow from TxLINE. Engagement XP polls settle against those events in the shared Postgres ledger.",
+    ],
+  },
+  {
+    id: "wallet",
+    title: "Wallets & sessions",
+    body: [
+      "Login uses Sign-In with Solana (message signature → session cookie). Phantom, OKX, Solflare, and MatchMind smart wallets are supported.",
+      "Smart wallets are generated in-browser, encrypted with your PIN (AES-GCM + PBKDF2), and never leave the device unencrypted. Export the secret once when creating.",
+      "On create/unlock, MatchMind drips gas SOL + test USDC (when balances are low) and grants Lace-your-boots welcome XP.",
+      "Moment/stadium memos and USDC place-prediction txs are fee-sponsored when the settlement pool can cover rent + fees. Share locked calls for Superfan points.",
+      "XP poll votes use the session only — no per-vote transaction.",
+    ],
+  },
+  {
+    id: "agent-pilot",
+    title: "Agent Pilot",
+    body: [
+      "Agent Pilot reads AgentX /api/signals and maps bullish “next goal” style headlines onto open MatchMind yes/no polls.",
+      "Enable it from the Agent page. A background tick (while the app is open) calls the vote API for polls you have not locked yet.",
+      "Mode Agent follows signals; mode Crowd follows terrace majority. You can still override manually on any card.",
+    ],
+  },
+  {
+    id: "mine",
+    title: "XP Mine (staking)",
+    body: [
+      "Stake liquid XP (≥10) into the Mine. While staked, XP accrues MM at ~0.05 MM per staked XP per day.",
+      "Claim settles pending MM into your MM balance. Convert MM → XP at 1 MM = 2 XP whenever you want liquid passport power again.",
+      "Unstaking returns XP after settling pending MM. Staked XP cannot be spent in the Shop until unstaked.",
+    ],
+  },
+  {
+    id: "tasks",
+    title: "Community tasks",
+    body: [
+      "Tasks are one-time XP grants for helping grow MatchMind — shares, Crew posts, first vote, drops, Agent Pilot, staking.",
+      "Each successful claim also drips ~0.012 SOL on devnet (capped) so smart wallets stay ready for on-chain moment/stadium txs.",
+      "Auto tasks unlock when the server sees the action on your passport. Link tasks are honor-claim after you open the share target.",
+    ],
+  },
+  {
+    id: "api",
+    title: "Useful endpoints",
+    body: [
+      "GET /api/engagement/featured — active match",
+      "GET /api/engagement/polls?matchId= — XP polls",
+      "GET /api/engagement/signals?matchId= — AgentX proxy",
+      "POST /api/engagement/auto-agent — enable / tick Agent Pilot",
+      "GET|POST /api/engagement/stake — mine status & actions",
+      "GET /api/engagement/tasks · POST /api/engagement/tasks/:id/claim",
+      "POST /api/engagement/wallet/fund — gas SOL + welcome XP",
+      "POST /api/faucet/sol — top up gas when below threshold",
+    ],
+  },
+];

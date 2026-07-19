@@ -1,12 +1,24 @@
 import { defineHandler } from "nitro";
 import { z } from "zod";
-import { buildPlacePredictionTx, getPlacePredictionRequirements } from "@shared/server/blockchain/escrow";
+import {
+  buildPlacePredictionTx,
+  ensureEscrowAtaForUser,
+  getPlacePredictionRequirements,
+} from "@shared/server/blockchain/escrow";
+import { ensureDevnetGas, isDevnetFaucetEnabled } from "@shared/server/blockchain/faucet";
 import { formatInsufficientSolMessage } from "@shared/lib/wallet/prediction-errors";
-import { getSolBalance } from "@shared/server/services/auth";
+import { getSolBalance, getUsdcBalance } from "@shared/server/services/auth";
 import { hasDatabase } from "@shared/server/config/env";
 import { maybeOne } from "@shared/server/db/postgres";
 import { screenWallet } from "@shared/server/services/webacy-screening";
-import { errorResponse, jsonResponse, rateLimit, readJsonBody, requireSession, requireMutationOrigin } from "@shared/server/middleware/http";
+import {
+  errorResponse,
+  jsonResponse,
+  rateLimit,
+  readJsonBody,
+  requireSession,
+  requireMutationOrigin,
+} from "@shared/server/middleware/http";
 
 const buildTxSchema = z.object({
   marketExternalId: z.string().min(1),
@@ -48,13 +60,35 @@ export default defineHandler(async (event) => {
     }
   }
 
+  const usdcBalance = await getUsdcBalance(wallet);
+  if (usdcBalance < parsed.data.amount) {
+    return errorResponse(
+      `Need ${parsed.data.amount} USDC (you have ${usdcBalance.toFixed(2)}). Tap Get test USDC on Predict, then retry.`,
+      400,
+    );
+  }
+
+  // Prefund gas + create escrow ATA from authority when possible (smart wallets).
+  if (isDevnetFaucetEnabled()) {
+    let userId: string | undefined;
+    if (hasDatabase()) {
+      const user = await maybeOne<{ id: string }>("select id from users where wallet_pubkey = $1", [wallet]);
+      userId = user?.id;
+    }
+    await ensureDevnetGas({ userPubkey: wallet, userId, reason: "place_prediction" });
+  }
+  await ensureEscrowAtaForUser({
+    marketExternalId: parsed.data.marketExternalId,
+    userPubkey: wallet,
+  });
+
   const requirements = await getPlacePredictionRequirements({
     userPubkey: wallet,
     marketExternalId: parsed.data.marketExternalId,
   });
 
   const solBalance = await getSolBalance(wallet);
-  if (solBalance * 1_000_000_000 < requirements.estimatedLamports) {
+  if (!requirements.canSponsor && solBalance * 1_000_000_000 < requirements.estimatedLamports) {
     return errorResponse(
       formatInsufficientSolMessage({
         solBalance,

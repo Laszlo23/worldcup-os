@@ -9,19 +9,46 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WishesRouteImport } from './routes/wishes'
+import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as StickersRouteImport } from './routes/stickers'
+import { Route as StakeRouteImport } from './routes/stake'
 import { Route as StadiumRouteImport } from './routes/stadium'
 import { Route as RewardsRouteImport } from './routes/rewards'
 import { Route as PredictRouteImport } from './routes/predict'
 import { Route as PassportRouteImport } from './routes/passport'
+import { Route as NewsRouteImport } from './routes/news'
 import { Route as MomentsRouteImport } from './routes/moments'
+import { Route as MarketRouteImport } from './routes/market'
+import { Route as LegendsRouteImport } from './routes/legends'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as DocsRouteImport } from './routes/docs'
+import { Route as CommunityRouteImport } from './routes/community'
+import { Route as AgentRouteImport } from './routes/agent'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NewsIndexRouteImport } from './routes/news.index'
+import { Route as NewsPostIdRouteImport } from './routes/news.$postId'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 
+const WishesRoute = WishesRouteImport.update({
+  id: '/wishes',
+  path: '/wishes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StickersRoute = StickersRouteImport.update({
   id: '/stickers',
   path: '/stickers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StakeRoute = StakeRouteImport.update({
+  id: '/stake',
+  path: '/stake',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StadiumRoute = StadiumRouteImport.update({
@@ -44,15 +71,60 @@ const PassportRoute = PassportRouteImport.update({
   path: '/passport',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewsRoute = NewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MomentsRoute = MomentsRouteImport.update({
   id: '/moments',
   path: '/moments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketRoute = MarketRouteImport.update({
+  id: '/market',
+  path: '/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegendsRoute = LegendsRouteImport.update({
+  id: '/legends',
+  path: '/legends',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityRoute = CommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const NewsIndexRoute = NewsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NewsRoute,
+} as any)
+const NewsPostIdRoute = NewsPostIdRouteImport.update({
+  id: '/$postId',
+  path: '/$postId',
+  getParentRoute: () => NewsRoute,
 } as any)
 const LegalTermsRoute = LegalTermsRouteImport.update({
   id: '/legal/terms',
@@ -67,93 +139,194 @@ const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/community': typeof CommunityRoute
+  '/docs': typeof DocsRoute
+  '/faq': typeof FaqRoute
+  '/legends': typeof LegendsRoute
+  '/market': typeof MarketRoute
   '/moments': typeof MomentsRoute
+  '/news': typeof NewsRouteWithChildren
   '/passport': typeof PassportRoute
   '/predict': typeof PredictRoute
   '/rewards': typeof RewardsRoute
   '/stadium': typeof StadiumRoute
+  '/stake': typeof StakeRoute
   '/stickers': typeof StickersRoute
+  '/tasks': typeof TasksRoute
+  '/wishes': typeof WishesRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/news/$postId': typeof NewsPostIdRoute
+  '/news/': typeof NewsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/community': typeof CommunityRoute
+  '/docs': typeof DocsRoute
+  '/faq': typeof FaqRoute
+  '/legends': typeof LegendsRoute
+  '/market': typeof MarketRoute
   '/moments': typeof MomentsRoute
   '/passport': typeof PassportRoute
   '/predict': typeof PredictRoute
   '/rewards': typeof RewardsRoute
   '/stadium': typeof StadiumRoute
+  '/stake': typeof StakeRoute
   '/stickers': typeof StickersRoute
+  '/tasks': typeof TasksRoute
+  '/wishes': typeof WishesRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/news/$postId': typeof NewsPostIdRoute
+  '/news': typeof NewsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agent': typeof AgentRoute
+  '/community': typeof CommunityRoute
+  '/docs': typeof DocsRoute
+  '/faq': typeof FaqRoute
+  '/legends': typeof LegendsRoute
+  '/market': typeof MarketRoute
   '/moments': typeof MomentsRoute
+  '/news': typeof NewsRouteWithChildren
   '/passport': typeof PassportRoute
   '/predict': typeof PredictRoute
   '/rewards': typeof RewardsRoute
   '/stadium': typeof StadiumRoute
+  '/stake': typeof StakeRoute
   '/stickers': typeof StickersRoute
+  '/tasks': typeof TasksRoute
+  '/wishes': typeof WishesRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/news/$postId': typeof NewsPostIdRoute
+  '/news/': typeof NewsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agent'
+    | '/community'
+    | '/docs'
+    | '/faq'
+    | '/legends'
+    | '/market'
     | '/moments'
+    | '/news'
     | '/passport'
     | '/predict'
     | '/rewards'
     | '/stadium'
+    | '/stake'
     | '/stickers'
+    | '/tasks'
+    | '/wishes'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/news/$postId'
+    | '/news/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agent'
+    | '/community'
+    | '/docs'
+    | '/faq'
+    | '/legends'
+    | '/market'
     | '/moments'
     | '/passport'
     | '/predict'
     | '/rewards'
     | '/stadium'
+    | '/stake'
     | '/stickers'
+    | '/tasks'
+    | '/wishes'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/news/$postId'
+    | '/news'
   id:
     | '__root__'
     | '/'
+    | '/agent'
+    | '/community'
+    | '/docs'
+    | '/faq'
+    | '/legends'
+    | '/market'
     | '/moments'
+    | '/news'
     | '/passport'
     | '/predict'
     | '/rewards'
     | '/stadium'
+    | '/stake'
     | '/stickers'
+    | '/tasks'
+    | '/wishes'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/news/$postId'
+    | '/news/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentRoute: typeof AgentRoute
+  CommunityRoute: typeof CommunityRoute
+  DocsRoute: typeof DocsRoute
+  FaqRoute: typeof FaqRoute
+  LegendsRoute: typeof LegendsRoute
+  MarketRoute: typeof MarketRoute
   MomentsRoute: typeof MomentsRoute
+  NewsRoute: typeof NewsRouteWithChildren
   PassportRoute: typeof PassportRoute
   PredictRoute: typeof PredictRoute
   RewardsRoute: typeof RewardsRoute
   StadiumRoute: typeof StadiumRoute
+  StakeRoute: typeof StakeRoute
   StickersRoute: typeof StickersRoute
+  TasksRoute: typeof TasksRoute
+  WishesRoute: typeof WishesRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wishes': {
+      id: '/wishes'
+      path: '/wishes'
+      fullPath: '/wishes'
+      preLoaderRoute: typeof WishesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stickers': {
       id: '/stickers'
       path: '/stickers'
       fullPath: '/stickers'
       preLoaderRoute: typeof StickersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stake': {
+      id: '/stake'
+      path: '/stake'
+      fullPath: '/stake'
+      preLoaderRoute: typeof StakeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stadium': {
@@ -184,11 +357,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PassportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/news': {
+      id: '/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/moments': {
       id: '/moments'
       path: '/moments'
       fullPath: '/moments'
       preLoaderRoute: typeof MomentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/market': {
+      id: '/market'
+      path: '/market'
+      fullPath: '/market'
+      preLoaderRoute: typeof MarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legends': {
+      id: '/legends'
+      path: '/legends'
+      fullPath: '/legends'
+      preLoaderRoute: typeof LegendsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community': {
+      id: '/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof CommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -197,6 +419,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/news/': {
+      id: '/news/'
+      path: '/'
+      fullPath: '/news/'
+      preLoaderRoute: typeof NewsIndexRouteImport
+      parentRoute: typeof NewsRoute
+    }
+    '/news/$postId': {
+      id: '/news/$postId'
+      path: '/$postId'
+      fullPath: '/news/$postId'
+      preLoaderRoute: typeof NewsPostIdRouteImport
+      parentRoute: typeof NewsRoute
     }
     '/legal/terms': {
       id: '/legal/terms'
@@ -215,14 +451,36 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface NewsRouteChildren {
+  NewsPostIdRoute: typeof NewsPostIdRoute
+  NewsIndexRoute: typeof NewsIndexRoute
+}
+
+const NewsRouteChildren: NewsRouteChildren = {
+  NewsPostIdRoute: NewsPostIdRoute,
+  NewsIndexRoute: NewsIndexRoute,
+}
+
+const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentRoute: AgentRoute,
+  CommunityRoute: CommunityRoute,
+  DocsRoute: DocsRoute,
+  FaqRoute: FaqRoute,
+  LegendsRoute: LegendsRoute,
+  MarketRoute: MarketRoute,
   MomentsRoute: MomentsRoute,
+  NewsRoute: NewsRouteWithChildren,
   PassportRoute: PassportRoute,
   PredictRoute: PredictRoute,
   RewardsRoute: RewardsRoute,
   StadiumRoute: StadiumRoute,
+  StakeRoute: StakeRoute,
   StickersRoute: StickersRoute,
+  TasksRoute: TasksRoute,
+  WishesRoute: WishesRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,
 }

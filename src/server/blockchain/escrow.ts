@@ -34,7 +34,7 @@ export type PlacePredictionRequirements = {
 export async function getPlacePredictionRequirements(params: {
   userPubkey: string;
   marketExternalId: string;
-}): Promise<PlacePredictionRequirements> {
+}): Promise<PlacePredictionRequirements & { canSponsor: boolean }> {
   const connection = getConnection();
   const user = new PublicKey(params.userPubkey);
   const mint = getUsdcMint();
@@ -53,7 +53,21 @@ export async function getPlacePredictionRequirements(params: {
   if (needsUserAta) estimatedLamports += TOKEN_ACCOUNT_RENT_LAMPORTS;
   if (needsEscrowAta) estimatedLamports += TOKEN_ACCOUNT_RENT_LAMPORTS;
 
-  return { needsUserAta, needsEscrowAta, estimatedLamports };
+    const authority = loadSettlementAuthority();
+    let canSponsor = false;
+    // Authority-sponsored rent/fees are a devnet UX aid only — never on mainnet.
+    if (authority && env.solanaNetwork === "devnet") {
+      const authoritySol = await connection.getBalance(authority.publicKey);
+      canSponsor = authoritySol >= estimatedLamports;
+    }
+
+  // When the settlement authority can pay fees + ATA rent, the user needs no SOL.
+  return {
+    needsUserAta,
+    needsEscrowAta,
+    estimatedLamports: canSponsor ? 0 : estimatedLamports,
+    canSponsor,
+  };
 }
 
 export type EnsureEscrowAtaResult = { ok: true } | { ok: false; reason: string };
@@ -88,6 +102,11 @@ export async function ensureEscrowAtaForUser(params: {
   marketExternalId: string;
   userPubkey: string;
 }): Promise<EnsureEscrowAtaResult> {
+  // Never spend settlement-authority SOL for ATA rent outside devnet.
+  if (env.solanaNetwork !== "devnet") {
+    return { ok: true };
+  }
+
   const authority = loadSettlementAuthority();
   if (!authority) return { ok: false, reason: "settlement_authority_missing" };
 
@@ -142,7 +161,7 @@ export async function buildPlacePredictionTx(
     marketExternalId: string;
   },
   connection: Connection = getConnection(),
-): Promise<{ transaction: string; escrowPda: string } | null> {
+): Promise<{ transaction: string; escrowPda: string; sponsored?: boolean } | null> {
   try {
     const user = new PublicKey(params.userPubkey);
     const mint = getUsdcMint();
@@ -150,17 +169,36 @@ export async function buildPlacePredictionTx(
     const escrowPda = getEscrowPdaForExternalMarket(params.marketExternalId, params.userPubkey);
     const escrowAta = getAssociatedTokenAddressSync(mint, escrowPda, true);
 
-    const tx = new Transaction();
-    const userAtaInfo = await connection.getAccountInfo(userAta);
-    if (!userAtaInfo) {
-      tx.add(createAssociatedTokenAccountInstruction(user, userAta, user, mint));
+    const [userAtaInfo, escrowInfo] = await Promise.all([
+      connection.getAccountInfo(userAta),
+      connection.getAccountInfo(escrowAta),
+    ]);
+    const needsUserAta = !userAtaInfo;
+    const needsEscrowAta = !escrowInfo;
+
+    const authority = loadSettlementAuthority();
+    let rentNeeded = TX_FEE_BUFFER_LAMPORTS;
+    if (needsUserAta) rentNeeded += TOKEN_ACCOUNT_RENT_LAMPORTS;
+    if (needsEscrowAta) rentNeeded += TOKEN_ACCOUNT_RENT_LAMPORTS;
+
+    let feePayer = user;
+    let sponsored = false;
+    if (authority && env.solanaNetwork === "devnet") {
+      const authoritySol = await connection.getBalance(authority.publicKey);
+      if (authoritySol >= rentNeeded) {
+        feePayer = authority.publicKey;
+        sponsored = true;
+      }
     }
 
-    const escrowInfo = await connection.getAccountInfo(escrowAta);
-    if (!escrowInfo) {
+    const tx = new Transaction();
+    if (needsUserAta) {
+      tx.add(createAssociatedTokenAccountInstruction(feePayer, userAta, user, mint));
+    }
+    if (needsEscrowAta) {
       tx.add(
         createAssociatedTokenAccountInstruction(
-          user,
+          feePayer,
           escrowAta,
           escrowPda,
           mint,
@@ -174,14 +212,20 @@ export async function buildPlacePredictionTx(
     const amountLamports = BigInt(Math.floor(params.amount * 1_000_000));
     tx.add(createTransferInstruction(userAta, escrowAta, user, amountLamports));
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     tx.recentBlockhash = blockhash;
-    tx.feePayer = user;
+    tx.lastValidBlockHeight = lastValidBlockHeight;
+    tx.feePayer = feePayer;
+
+    if (sponsored && authority) {
+      tx.partialSign(authority);
+    }
 
     const serialized = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
     return {
       transaction: serialized.toString("base64"),
       escrowPda: escrowPda.toBase58(),
+      sponsored,
     };
   } catch {
     return null;

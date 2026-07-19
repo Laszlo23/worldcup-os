@@ -89,6 +89,13 @@ export async function runWorkerTick() {
   }
 
   try {
+    const { runVibeAgentsTick } = await import("../services/vibe-agents");
+    results.vibeAgents = await runVibeAgentsTick();
+  } catch (err) {
+    console.error("vibe agents tick:", err);
+  }
+
+  try {
     const { syncLiveMarketsForAllInPlay } = await import("../services/live-markets");
     results.liveMarketsCreated = await syncLiveMarketsForAllInPlay();
   } catch (err) {

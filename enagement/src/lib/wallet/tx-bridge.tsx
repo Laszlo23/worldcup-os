@@ -3,7 +3,11 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
 import { useAppStore } from "../store";
 import { findInjectedForSession, injectedPubkey } from "./injected-wallet";
-import type { WalletTxFns } from "./signing";
+import {
+  getUnlockedSmartWalletPubkey,
+  isSmartWalletUnlocked,
+  smartWalletTxFns,
+} from "./smart-wallet";
 
 export function WalletTxBridge() {
   const { signTransaction, sendTransaction, connected, publicKey, wallet: adapterWallet } = useWallet();
@@ -15,6 +19,15 @@ export function WalletTxBridge() {
     const sessionPubkey = wallet.connected ? wallet.address : null;
     const injected = sessionPubkey ? findInjectedForSession(sessionPubkey) : null;
     const injectedPubkeyStr = injected ? injectedPubkey(injected.provider) : null;
+
+    if (
+      sessionPubkey &&
+      isSmartWalletUnlocked() &&
+      getUnlockedSmartWalletPubkey() === sessionPubkey
+    ) {
+      setWalletTxFns(smartWalletTxFns());
+      return;
+    }
 
     if (signTransaction && adapterPubkey && sessionPubkey && adapterPubkey === sessionPubkey) {
       setWalletTxFns({

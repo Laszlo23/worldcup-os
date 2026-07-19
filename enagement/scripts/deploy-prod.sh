@@ -38,6 +38,7 @@ if [ -f "\$ENV_FILE" ]; then
   grep -q '^PORT=' "\$ENV_FILE" && sed -i 's|^PORT=.*|PORT=3031|' "\$ENV_FILE" || echo 'PORT=3031' >> "\$ENV_FILE"
   grep -q '^NITRO_DEV_PORT=' "\$ENV_FILE" && sed -i 's|^NITRO_DEV_PORT=.*|NITRO_DEV_PORT=3031|' "\$ENV_FILE" || echo 'NITRO_DEV_PORT=3031' >> "\$ENV_FILE"
   grep -q '^VITE_PORT=' "\$ENV_FILE" && sed -i 's|^VITE_PORT=.*|VITE_PORT=3019|' "\$ENV_FILE" || echo 'VITE_PORT=3019' >> "\$ENV_FILE"
+  grep -q '^AGENTX_URL=' "\$ENV_FILE" && sed -i 's|^AGENTX_URL=.*|AGENTX_URL=https://agentx.buildingcultureid.space|' "\$ENV_FILE" || echo 'AGENTX_URL=https://agentx.buildingcultureid.space' >> "\$ENV_FILE"
   for key in WEBACY_API_KEY WEBACY_ENABLED; do
     if [ -f /var/www/wmos-buildingculture/.env ] && grep -q "^\${key}=" /var/www/wmos-buildingculture/.env; then
       val="\$(grep "^\${key}=" /var/www/wmos-buildingculture/.env | head -1 | cut -d= -f2-)"

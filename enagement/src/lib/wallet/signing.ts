@@ -5,6 +5,11 @@ import {
   type InjectedWallet,
 } from "./injected-wallet";
 import { ensureWalletNetwork } from "./ensure-wallet-network";
+import {
+  getUnlockedSmartWalletPubkey,
+  isSmartWalletUnlocked,
+  smartWalletTxFns,
+} from "./smart-wallet";
 import { useAppStore } from "../store";
 import { canUseOnChainPredictions } from "./config";
 
@@ -18,8 +23,14 @@ function isBlockhashError(err: unknown): boolean {
   return msg.includes("blockhash") || msg.includes("block hash") || msg.includes("expired");
 }
 
+function hasPartialSignatures(tx: Transaction): boolean {
+  return tx.signatures.some((entry) => entry.signature != null);
+}
+
 /** Pre-built server txs go stale quickly — refresh immediately before sign/send. */
 async function refreshLegacyBlockhash(tx: Transaction, connection: Connection): Promise<void> {
+  // Sponsored/partially-signed txs (authority fee payer) must keep their blockhash.
+  if (hasPartialSignatures(tx)) return;
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   tx.recentBlockhash = blockhash;
   tx.lastValidBlockHeight = lastValidBlockHeight;
@@ -76,11 +87,20 @@ export async function submitTransaction(
   }
 }
 
-/** Resolve wallet signing at action time — Phantom, OKX, or wallet-adapter bridge. */
+/** Resolve wallet signing at action time — smart wallet, Phantom, OKX, or adapter bridge. */
 export async function resolveWalletTxFns(): Promise<WalletTxFns> {
   const { wallet, walletTxFns } = useAppStore.getState();
   if (!wallet.connected || !wallet.address) {
     throw new Error("Connect wallet first");
+  }
+
+  if (
+    isSmartWalletUnlocked() &&
+    getUnlockedSmartWalletPubkey() === wallet.address
+  ) {
+    const fns = smartWalletTxFns();
+    useAppStore.getState().setWalletTxFns(fns);
+    return fns;
   }
 
   if (walletTxFns?.signTransaction) {
@@ -89,7 +109,9 @@ export async function resolveWalletTxFns(): Promise<WalletTxFns> {
 
   const injected = findInjectedForSession(wallet.address);
   if (!injected) {
-    throw new Error("Wallet extension not detected — reconnect your wallet to sign the escrow transfer");
+    throw new Error(
+      "Wallet not ready — unlock your MatchMind smart wallet or reconnect Phantom / OKX",
+    );
   }
 
   if (!injected.provider.isConnected || !injected.provider.publicKey) {
@@ -121,6 +143,9 @@ export function isOnChainPredictionEnabled(): boolean {
 export function isWalletReadyForSigning(): boolean {
   const { wallet, walletTxFns } = useAppStore.getState();
   if (!wallet.connected) return false;
+  if (isSmartWalletUnlocked() && getUnlockedSmartWalletPubkey() === wallet.address) {
+    return true;
+  }
   if (walletTxFns?.signTransaction) return true;
   const injected = findInjectedForSession(wallet.address);
   if (!injected?.provider.isConnected || !injected.provider.publicKey) return false;

@@ -6,23 +6,21 @@ import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { useAppStore } from "@/lib/store";
 import { resolveWalletTxFns, submitTransaction } from "@/lib/wallet/signing";
+import { ensureOnchainGas } from "@/lib/wallet/fund-wallet";
 import { Connection, Transaction } from "@solana/web3.js";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queries/hooks";
 import type { EngagementMoment } from "@/lib/queries/hooks";
-import { SOCCER_MOMENT_FALLBACKS } from "@/lib/soccer-assets";
+import { dropArtForSeed } from "@/lib/soccer-assets";
 import { decodeBase64 } from "@/lib/base64";
 import { useWalletSigningReady } from "@/hooks/use-wallet-signing-ready";
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet";
 import { rarityStyles } from "./sticker-styles";
 
+/** Prefer diversified drop art so the album never looks like one repeated still. */
 function momentImageSrc(moment: EngagementMoment): string {
-  const img = moment.image?.trim() ?? "";
-  if (img) return img;
-  const idx =
-    Math.abs(moment.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % SOCCER_MOMENT_FALLBACKS.length;
-  return SOCCER_MOMENT_FALLBACKS[idx];
+  return dropArtForSeed(`${moment.id}:${moment.player}:${moment.minute}`);
 }
 
 type ClaimStep = "idle" | "building" | "signing" | "confirming";
@@ -69,6 +67,7 @@ export function MomentCard({ moment, size = "lg" }: { moment: EngagementMoment; 
       const txFns = await resolveWalletTxFns();
       const connection = new Connection(import.meta.env.VITE_SOLANA_RPC_URL ?? "https://api.devnet.solana.com");
       setStep("building");
+      await ensureOnchainGas();
       const built = await apiFetch<{ transaction: string }>(`/api/engagement/moments/${moment.id}/claim`, {
         method: "POST",
         body: JSON.stringify({ action: "build" }),

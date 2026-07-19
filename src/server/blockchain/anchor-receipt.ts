@@ -1,24 +1,36 @@
 import {
   Connection,
   PublicKey,
-  SystemProgram,
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
 import { getConnection, getExplorerUrl } from "./escrow";
+import { loadSettlementAuthority } from "./settlement";
 
 const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWBqeybbncbhKi");
 
 export async function buildAnchorReceiptTx(params: {
   userPubkey: string;
   memo: string;
-}): Promise<{ transaction: string; explorerUrl?: string }> {
+}): Promise<{ transaction: string; sponsored?: boolean }> {
   const connection = getConnection();
   const user = new PublicKey(params.userPubkey);
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
 
+  // Prefer authority-sponsored fees so empty smart wallets can still claim on-chain.
+  const authority = loadSettlementAuthority();
+  let feePayer = user;
+  let sponsored = false;
+  if (authority) {
+    const authorityLamports = await connection.getBalance(authority.publicKey);
+    if (authorityLamports >= 20_000) {
+      feePayer = authority.publicKey;
+      sponsored = true;
+    }
+  }
+
   const tx = new Transaction({
-    feePayer: user,
+    feePayer,
     blockhash,
     lastValidBlockHeight,
   });
@@ -31,27 +43,49 @@ export async function buildAnchorReceiptTx(params: {
     }),
   );
 
+  if (sponsored && authority) {
+    tx.partialSign(authority);
+  }
+
   const serialized = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
   return {
     transaction: Buffer.from(serialized).toString("base64"),
+    sponsored,
   };
 }
 
-function memoTxValid(
+/** Exported for unit tests — memo must bind to the expected action string. */
+export function memoTxValid(
   tx: Awaited<ReturnType<Connection["getTransaction"]>>,
   userPubkey: string,
   expectedPrefix: string,
 ): boolean {
   if (!tx?.transaction) return false;
+  if (tx.meta?.err) return false;
+  if (!expectedPrefix || expectedPrefix.length < 8) return false;
 
   const message = tx.transaction.message;
-  const accountKeys = message.getAccountKeys().staticAccountKeys;
-  const signerIndex = accountKeys.findIndex((k) => k.toBase58() === userPubkey);
+  const accountKeys = message.getAccountKeys();
+  const staticKeys = accountKeys.staticAccountKeys;
+  const signerIndex = staticKeys.findIndex((k) => k.toBase58() === userPubkey);
   if (signerIndex < 0) return false;
 
+  // Require the action-specific prefix — never accept a bare "Program log: Memo".
   const logs = tx.meta?.logMessages ?? [];
-  const memoLog = logs.find((l) => l.includes("Program log: Memo") || l.includes(expectedPrefix));
-  return Boolean(memoLog);
+  if (logs.some((l) => l.includes(expectedPrefix))) return true;
+
+  // Fallback: decode Memo program instruction data (utf8).
+  try {
+    for (const ix of message.compiledInstructions) {
+      const programId = accountKeys.get(ix.programIdIndex);
+      if (!programId?.equals(MEMO_PROGRAM_ID)) continue;
+      const text = Buffer.from(ix.data).toString("utf8");
+      if (text.includes(expectedPrefix)) return true;
+    }
+  } catch {
+    // ignore decode errors
+  }
+  return false;
 }
 
 export async function verifyMemoTx(params: {

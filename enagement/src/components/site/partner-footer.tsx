@@ -49,7 +49,25 @@ export function PartnerFooter({ compact = false }: { compact?: boolean }) {
         )}
         <div className="flex flex-col items-center gap-4 text-xs font-mono text-muted-foreground">
           <div>© {new Date().getFullYear()} {tagline}</div>
-          <div className="flex flex-wrap items-center justify-center gap-4 uppercase tracking-wider">
+          <div className="flex flex-wrap items-center justify-center gap-3 uppercase tracking-wider">
+            <Link to="/news" className="hover:text-foreground transition-colors">
+              News
+            </Link>
+            <Link to="/faq" className="hover:text-foreground transition-colors">
+              FAQ
+            </Link>
+            <Link to="/docs" className="hover:text-foreground transition-colors">
+              Docs
+            </Link>
+            <Link to="/tasks" className="hover:text-foreground transition-colors">
+              Tasks
+            </Link>
+            <Link to="/stake" className="hover:text-foreground transition-colors">
+              Mine
+            </Link>
+            <Link to="/agent" className="hover:text-foreground transition-colors">
+              Agent
+            </Link>
             <Link to="/legal/terms" className="hover:text-foreground transition-colors">
               Terms
             </Link>

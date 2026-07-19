@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAppStore } from "../store";
@@ -8,6 +8,10 @@ import type { Match } from "../types";
 import type { LiveEvent } from "../queries/hooks";
 import { feedEventKeyFromLiveEvent } from "../live-events";
 import { isToastableFeedEvent } from "../feed-event-key";
+import {
+  GoalCelebrationModal,
+  type GoalCelebrationPayload,
+} from "@/components/matchmind/GoalCelebrationModal";
 
 const SEEN_FEED_KEYS_KEY = "matchmind-seen-feed-keys";
 
@@ -23,6 +27,15 @@ function loadSeenFeedKeys(): Set<string> {
   }
 }
 
+function persistSeenFeedKeys(keys: Set<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(SEEN_FEED_KEYS_KEY, JSON.stringify([...keys].slice(-80)));
+  } catch {
+    // ignore quota
+  }
+}
+
 export function LiveProvider({ children }: { children?: ReactNode }) {
   const updateMatch = useAppStore((s) => s.updateMatch);
   const setMatches = useAppStore((s) => s.setMatches);
@@ -30,6 +43,7 @@ export function LiveProvider({ children }: { children?: ReactNode }) {
   const seenFeedKeys = useRef<Set<string>>(loadSeenFeedKeys());
   const feedBootstrapped = useRef(false);
   const storeMatches = useAppStore((s) => s.matches);
+  const [celebration, setCelebration] = useState<GoalCelebrationPayload | null>(null);
 
   const { data: matches } = useQuery({
     queryKey: queryKeys.matches,
@@ -89,15 +103,34 @@ export function LiveProvider({ children }: { children?: ReactNode }) {
     if (!feedBootstrapped.current) {
       for (const event of liveEvents) markSeen(event);
       feedBootstrapped.current = true;
+      persistSeenFeedKeys(seenFeedKeys.current);
       return;
     }
     const newcomers = liveEvents.filter((e) => !seenFeedKeys.current.has(feedEventKeyFromLiveEvent(e)));
     for (const event of newcomers) {
-      markSeen(event);
+      const key = markSeen(event);
+      if (event.event_type === "goal") {
+        setCelebration({
+          title: event.title || "Goal",
+          body: event.body || "",
+          eventKey: key,
+        });
+        continue;
+      }
       if (!isToastableFeedEvent(event.event_type)) continue;
-      toast.success(event.title, { description: event.body, id: feedEventKeyFromLiveEvent(event) });
+      toast.success(event.title, { description: event.body, id: key });
     }
+    if (newcomers.length) persistSeenFeedKeys(seenFeedKeys.current);
   }, [liveEvents]);
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <GoalCelebrationModal
+        open={Boolean(celebration)}
+        payload={celebration}
+        onClose={() => setCelebration(null)}
+      />
+    </>
+  );
 }

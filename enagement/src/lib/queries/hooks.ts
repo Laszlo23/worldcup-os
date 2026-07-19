@@ -16,6 +16,12 @@ export const queryKeys = {
   liveEvents: (matchId?: string) => ["liveEvents", matchId ?? "all"] as const,
   stadium: (matchId?: string) => ["stadium", matchId ?? "all"] as const,
   proofs: ["proofs"] as const,
+  community: (matchId?: string) => ["community", matchId ?? "all"] as const,
+  fanMessages: (matchId?: string) => ["fanMessages", matchId ?? "all"] as const,
+  signals: (matchId?: string) => ["signals", matchId ?? "all"] as const,
+  wishes: ["wishes"] as const,
+  marketListings: ["marketListings"] as const,
+  marketInventory: ["marketInventory"] as const,
 };
 
 export function useHealth() {
@@ -156,21 +162,40 @@ export function useEngagementMoments(matchId?: string, opts?: { requireMatch?: b
   });
 }
 
+export type FanSocials = {
+  x?: string;
+  discord?: string;
+  farcaster?: string;
+  telegram?: string;
+  website?: string;
+};
+
+export type PassportPayload = {
+  xp: number;
+  level: number;
+  streak: number;
+  predictionsTotal: number;
+  predictionsWon: number;
+  momentsClaimed: number;
+  stadiumVerified: number;
+  xpStaked?: number;
+  mmBalance?: number;
+  pendingMm?: number;
+  displayName?: string | null;
+  socials?: FanSocials;
+  evmAddress?: string | null;
+  humanPassportScore?: number | null;
+  humanPassportCheckedAt?: string | null;
+  humanVerified?: boolean;
+  achievements: { id: string; title: string; unlocked: boolean }[];
+};
+
 export function usePassport(enabled = true) {
   return useQuery({
     queryKey: queryKeys.passport,
     queryFn: async () => {
       const res = await apiFetch<{
-        passport: {
-          xp: number;
-          level: number;
-          streak: number;
-          predictionsTotal: number;
-          predictionsWon: number;
-          momentsClaimed: number;
-          stadiumVerified: number;
-          achievements: { id: string; title: string; unlocked: boolean }[];
-        };
+        passport: PassportPayload;
         wallet: string;
       }>("/api/engagement/passport");
       return res;
@@ -239,5 +264,95 @@ export function useStadiumStatus(matchId?: string, enabled = true) {
       return res;
     },
     enabled: Boolean(matchId) && enabled,
+  });
+}
+
+export type FanMessage = {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: {
+    wallet: string;
+    nickname: string | null;
+    avatar: string | null;
+    isAgent?: boolean;
+  };
+};
+
+export type FanLeaderRow = {
+  rank: number;
+  wallet: string;
+  nickname: string | null;
+  avatar: string | null;
+  xp: number;
+  level: number;
+  streak: number;
+  momentsClaimed: number;
+};
+
+export type CommunitySnapshot = {
+  xpLeaderboard: FanLeaderRow[];
+  superfanLeaderboard: { rank: number; wallet: string; points: number; nickname: string | null; avatar: string | null }[];
+  crowd: { checkedIn: number; recent: { wallet: string; nickname: string | null; verifiedAt: string }[] };
+  reactions: { emoji: string; count: number }[];
+  pulse: {
+    id: string;
+    kind: "vote" | "moment" | "stadium" | "chat";
+    title: string;
+    body: string;
+    createdAt: string;
+    wallet: string | null;
+  }[];
+};
+
+export function useCommunity(matchId?: string) {
+  return useQuery({
+    queryKey: queryKeys.community(matchId),
+    queryFn: async () => {
+      const qs = matchId ? `?matchId=${encodeURIComponent(matchId)}` : "";
+      return apiFetch<CommunitySnapshot>(`/api/engagement/community${qs}`);
+    },
+    refetchInterval: 8_000,
+  });
+}
+
+export function useFanMessages(matchId?: string) {
+  return useQuery({
+    queryKey: queryKeys.fanMessages(matchId),
+    queryFn: async () => {
+      const res = await apiFetch<{ messages: FanMessage[] }>(
+        `/api/engagement/community/messages?matchId=${encodeURIComponent(matchId!)}&limit=60`,
+      );
+      return res.messages;
+    },
+    enabled: Boolean(matchId),
+    refetchInterval: 4_000,
+  });
+}
+
+export type MatchSignal = {
+  id: string;
+  matchId: string;
+  type: string;
+  headline: string;
+  prediction: string;
+  confidence: number;
+  impact: string | null;
+  createdAt: string | null;
+};
+
+export function useMatchSignals(matchId?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.signals(matchId),
+    queryFn: async () => {
+      const qs = new URLSearchParams({ limit: "5" });
+      if (matchId) qs.set("matchId", matchId);
+      return apiFetch<{ signals: MatchSignal[]; ok: boolean }>(
+        `/api/engagement/signals?${qs.toString()}`,
+      );
+    },
+    enabled: Boolean(matchId) && enabled,
+    staleTime: 12_000,
+    refetchInterval: 15_000,
   });
 }

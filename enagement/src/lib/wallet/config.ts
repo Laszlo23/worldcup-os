@@ -1,8 +1,9 @@
 const PLACEHOLDER_PROGRAM_ID = "Wcup111111111111111111111111111111111111111";
 
-export function getClientSolanaNetwork(): "devnet" | "mainnet" {
+export function getClientSolanaNetwork(): "devnet" | "mainnet" | "mainnet-beta" {
   const raw = import.meta.env.VITE_SOLANA_NETWORK ?? "devnet";
-  return raw === "mainnet" ? "mainnet" : "devnet";
+  if (raw === "mainnet" || raw === "mainnet-beta") return "mainnet-beta";
+  return "devnet";
 }
 
 export function getClientWorldcupProgramId(): string {

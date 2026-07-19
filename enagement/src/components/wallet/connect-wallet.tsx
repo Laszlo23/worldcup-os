@@ -1,4 +1,5 @@
-import { Wallet } from "lucide-react";
+import { IdCard, KeyRound, LogOut, Wallet } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -16,10 +17,19 @@ import {
 } from "@/lib/wallet/injected-wallet";
 import { ensureWalletNetwork, WalletNetworkError } from "@/lib/wallet/ensure-wallet-network";
 import { shouldBlockWalletConnect, isMobileViewport, isWalletAppBrowser } from "@/lib/wallet/device";
+import { hasSmartWallet, lockSmartWallet } from "@/lib/wallet/smart-wallet";
+import { SmartWalletDialog } from "@/components/wallet/smart-wallet-dialog";
+import { useClientMounted } from "@/hooks/use-client-mounted";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-export function ConnectWalletButton({ size = "sm" }: { size?: "sm" | "default" }) {
+export function ConnectWalletButton({
+  size = "sm",
+  onOpenWallet,
+}: {
+  size?: "sm" | "default";
+  onOpenWallet?: () => void;
+}) {
   const walletUiReady = useWalletUiReady();
   if (!walletUiReady) {
     return (
@@ -29,16 +39,28 @@ export function ConnectWalletButton({ size = "sm" }: { size?: "sm" | "default" }
       </Button>
     );
   }
-  return <ConnectWalletButtonCore size={size} />;
+  return <ConnectWalletButtonCore size={size} onOpenWallet={onOpenWallet} />;
 }
 
-function ConnectWalletButtonCore({ size = "sm" }: { size?: "sm" | "default" }) {
+function ConnectWalletButtonCore({
+  size = "sm",
+  onOpenWallet,
+}: {
+  size?: "sm" | "default";
+  onOpenWallet?: () => void;
+}) {
   const { publicKey, connected, connecting, signMessage, disconnect, select, wallets, connect, wallet } = useWallet();
   const { setVisible } = useWalletModal();
   const { wallet: session, connectWallet, disconnectWallet } = useAppStore();
   const authInFlight = useRef(false);
   const connectInFlight = useRef(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [smartOpen, setSmartOpen] = useState(false);
+  const [smartMode, setSmartMode] = useState<"auto" | "create" | "unlock">("auto");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const mounted = useClientMounted();
+  const smartExists = mounted && hasSmartWallet();
 
   useEffect(() => {
     if (!connected || !publicKey || !signMessage || session.connected) return;
@@ -60,6 +82,24 @@ function ConnectWalletButtonCore({ size = "sm" }: { size?: "sm" | "default" }) {
       }
     })();
   }, [connected, publicKey, signMessage, session.connected, connectWallet, disconnect]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   async function connectWithInjected(injected: InjectedWallet) {
     await ensureWalletNetwork(injected.name);
@@ -122,8 +162,10 @@ function ConnectWalletButtonCore({ size = "sm" }: { size?: "sm" | "default" }) {
       if (shouldBlockWalletConnect()) {
         toast.error("Open in Safari or Chrome", {
           description:
-            "Social in-app browsers block wallet extensions. Copy the link and open it in your phone browser.",
+            "Social in-app browsers block wallet extensions. Copy the link and open it in your phone browser — or create a MatchMind smart wallet.",
         });
+        setSmartMode(hasSmartWallet() ? "unlock" : "create");
+        setSmartOpen(true);
         return;
       }
 
@@ -137,11 +179,10 @@ function ConnectWalletButtonCore({ size = "sm" }: { size?: "sm" | "default" }) {
       const adapterConnected = await connectViaAdapter();
       if (adapterConnected) return;
 
-      setVisible(true);
-      toast.error("No wallet detected", {
-        description: isMobileViewport()
-          ? "Open this page in Phantom or OKX in-app browser, or install a wallet extension on desktop."
-          : "Install Phantom or OKX Wallet extension, then reload this page.",
+      setSmartMode(hasSmartWallet() ? "unlock" : "create");
+      setSmartOpen(true);
+      toast.message(hasSmartWallet() ? "Unlock smart wallet" : "Create a smart wallet", {
+        description: "No extension detected — use MatchMind’s in-app Solana wallet.",
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not open wallet";
@@ -158,35 +199,98 @@ function ConnectWalletButtonCore({ size = "sm" }: { size?: "sm" | "default" }) {
     }
   }
 
+  async function handleLogout() {
+    setMenuOpen(false);
+    await logoutWallet();
+    lockSmartWallet();
+    disconnectWallet();
+    await disconnect();
+  }
+
   if (session.connected) {
     return (
-      <Button
-        size={size}
-        variant="outline"
-        className="font-mono text-[10px] uppercase tracking-wider"
-        onClick={() => {
-          void logoutWallet();
-          disconnectWallet();
-          void disconnect();
-        }}
-      >
-        {session.address.slice(0, 4)}…{session.address.slice(-4)}
-      </Button>
+      <div className="relative" ref={menuRef}>
+        <Button
+          size={size}
+          variant="outline"
+          className="font-mono text-[10px] uppercase tracking-wider"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          {session.address.slice(0, 4)}…{session.address.slice(-4)}
+        </Button>
+        {menuOpen ? (
+          <div
+            role="menu"
+            className="absolute right-0 top-[calc(100%+0.35rem)] z-50 w-44 overflow-hidden rounded-2xl border border-border bg-card/95 p-1 shadow-[0_16px_40px_-20px_oklch(0_0_0_/_0.75)] backdrop-blur-xl"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-foreground transition hover:bg-primary/10"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenWallet?.();
+              }}
+            >
+              <Wallet className="size-4 text-primary" />
+              Wallet
+            </button>
+            <Link
+              to="/passport"
+              role="menuitem"
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground transition hover:bg-primary/10"
+              onClick={() => setMenuOpen(false)}
+            >
+              <IdCard className="size-4 text-primary" />
+              Profile
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-live transition hover:bg-live/10"
+              onClick={() => void handleLogout()}
+            >
+              <LogOut className="size-4" />
+              Log out
+            </button>
+          </div>
+        ) : null}
+      </div>
     );
   }
 
   return (
-    <Button
-      size={size}
-      className="gap-1.5 bg-primary text-primary-foreground"
-      disabled={connecting || connectInFlight.current}
-      onClick={() => {
-        void handleConnect();
-      }}
-    >
-      <Wallet className="h-3.5 w-3.5" />
-      {connecting ? "Connecting…" : isOkxInstalled() ? "Connect OKX" : "Connect"}
-      {error ? <span className="sr-only">{error}</span> : null}
-    </Button>
+    <>
+      <div className="flex items-center gap-1.5">
+        <Button
+          size={size}
+          variant="outline"
+          className="gap-1 border-primary/40 bg-primary/10 px-2 text-primary"
+          onClick={() => {
+            setSmartMode(smartExists ? "unlock" : "create");
+            setSmartOpen(true);
+          }}
+          title={smartExists ? "Unlock smart wallet" : "Create smart wallet"}
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          {size === "default" ? (smartExists ? "Unlock" : "Create") : null}
+        </Button>
+        <Button
+          size={size}
+          className="gap-1.5 bg-primary text-primary-foreground"
+          disabled={connecting || connectInFlight.current}
+          onClick={() => {
+            void handleConnect();
+          }}
+        >
+          <Wallet className="h-3.5 w-3.5" />
+          {connecting ? "Connecting…" : isOkxInstalled() ? "OKX" : "Connect"}
+          {error ? <span className="sr-only">{error}</span> : null}
+        </Button>
+      </div>
+      <SmartWalletDialog open={smartOpen} onOpenChange={setSmartOpen} mode={smartMode} />
+    </>
   );
 }

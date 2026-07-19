@@ -59,23 +59,23 @@
 
 :root {
   --radius: 0.75rem;
-  /* Stadium Night Glass — MatchMind (cyan + pitch green) */
-  --background: oklch(0.1 0.02 240);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.15 0.02 240);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.12 0.018 240);
-  --popover-foreground: oklch(0.98 0 0);
-  /* Stadium green */
-  --primary: oklch(0.82 0.22 155);
-  --primary-foreground: oklch(0.12 0.02 240);
-  --secondary: oklch(0.22 0.02 240);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.2 0.018 240);
-  --muted-foreground: oklch(0.65 0.02 240);
-  /* Electric cyan */
-  --accent: oklch(0.82 0.16 210);
-  --accent-foreground: oklch(0.12 0.02 240);
+  /* Broadcast Electric — MatchMind (cyan-led, distinct from AgentX gold/navy) */
+  --background: oklch(0.09 0.035 210);
+  --foreground: oklch(0.98 0.01 210);
+  --card: oklch(0.14 0.04 210);
+  --card-foreground: oklch(0.98 0.01 210);
+  --popover: oklch(0.11 0.035 210);
+  --popover-foreground: oklch(0.98 0.01 210);
+  /* Pitch green */
+  --primary: oklch(0.84 0.22 155);
+  --primary-foreground: oklch(0.12 0.03 210);
+  --secondary: oklch(0.2 0.035 210);
+  --secondary-foreground: oklch(0.98 0.01 210);
+  --muted: oklch(0.18 0.03 210);
+  --muted-foreground: oklch(0.68 0.04 210);
+  /* Electric cyan — hero accent */
+  --accent: oklch(0.84 0.17 210);
+  --accent-foreground: oklch(0.12 0.03 210);
   --destructive: oklch(0.68 0.24 25);
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.28 0.02 240);
@@ -102,6 +102,60 @@
 
 .dark {
   /* App is dark-only; .dark inherits from :root. */
+}
+
+/* Argentina — celeste & white on deep navy */
+:root[data-kit="argentina"] {
+  --background: oklch(0.12 0.04 250);
+  --foreground: oklch(0.98 0.01 240);
+  --card: oklch(0.17 0.045 250);
+  --card-foreground: oklch(0.98 0.01 240);
+  --popover: oklch(0.14 0.04 250);
+  --popover-foreground: oklch(0.98 0.01 240);
+  --primary: oklch(0.78 0.12 235);
+  --primary-foreground: oklch(0.14 0.04 250);
+  --secondary: oklch(0.22 0.04 250);
+  --secondary-foreground: oklch(0.98 0.01 240);
+  --muted: oklch(0.2 0.035 250);
+  --muted-foreground: oklch(0.72 0.04 240);
+  --accent: oklch(0.96 0.01 240);
+  --accent-foreground: oklch(0.18 0.04 250);
+  --ring: oklch(0.78 0.12 235);
+  --gold: oklch(0.9 0.08 95);
+  --live: oklch(0.68 0.22 25);
+  --gradient-brand: linear-gradient(135deg, oklch(0.78 0.12 235), oklch(0.96 0.01 240));
+  --shadow-brand: 0 0 28px oklch(0.78 0.12 235 / 0.35);
+  --chart-1: oklch(0.78 0.12 235);
+  --chart-2: oklch(0.96 0.01 240);
+  --sidebar-primary: oklch(0.78 0.12 235);
+  --sidebar-ring: oklch(0.78 0.12 235);
+}
+
+/* Spain — rojo & oro */
+:root[data-kit="spain"] {
+  --background: oklch(0.11 0.04 30);
+  --foreground: oklch(0.98 0.02 90);
+  --card: oklch(0.16 0.05 30);
+  --card-foreground: oklch(0.98 0.02 90);
+  --popover: oklch(0.13 0.045 30);
+  --popover-foreground: oklch(0.98 0.02 90);
+  --primary: oklch(0.58 0.22 25);
+  --primary-foreground: oklch(0.98 0.02 90);
+  --secondary: oklch(0.22 0.05 40);
+  --secondary-foreground: oklch(0.98 0.02 90);
+  --muted: oklch(0.2 0.04 35);
+  --muted-foreground: oklch(0.72 0.04 80);
+  --accent: oklch(0.84 0.16 90);
+  --accent-foreground: oklch(0.16 0.05 30);
+  --ring: oklch(0.84 0.16 90);
+  --gold: oklch(0.86 0.16 90);
+  --live: oklch(0.65 0.24 25);
+  --gradient-brand: linear-gradient(135deg, oklch(0.58 0.22 25), oklch(0.84 0.16 90));
+  --shadow-brand: 0 0 28px oklch(0.58 0.22 25 / 0.4);
+  --chart-1: oklch(0.58 0.22 25);
+  --chart-2: oklch(0.84 0.16 90);
+  --sidebar-primary: oklch(0.58 0.22 25);
+  --sidebar-ring: oklch(0.84 0.16 90);
 }
 
 @layer base {
@@ -225,6 +279,58 @@
     linear-gradient(90deg, oklch(0.82 0.16 210 / 8%) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 75%);
+}
+
+/* Soccer pitch lane marks for scoreboard / onboarding */
+.pitch-lines {
+  background-image:
+    linear-gradient(90deg, transparent 48%, oklch(1 0 0 / 18%) 48%, oklch(1 0 0 / 18%) 52%, transparent 52%),
+    radial-gradient(circle at 50% 50%, transparent 18%, oklch(1 0 0 / 14%) 18.5%, oklch(1 0 0 / 14%) 20%, transparent 20.5%);
+}
+
+.kit-stripe {
+  background-image:
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--primary) 18%, transparent) 0%,
+      transparent 40%,
+      color-mix(in oklab, var(--accent) 16%, transparent) 100%
+    );
+}
+
+.kit-badge {
+  background:
+    linear-gradient(160deg, color-mix(in oklab, var(--primary) 35%, transparent), color-mix(in oklab, var(--card) 90%, transparent));
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 12%),
+    0 8px 20px -12px oklch(0 0 0 / 55%);
+}
+
+:root[data-kit="argentina"] .kit-stripe {
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--primary) 22%, transparent) 0 10px,
+      color-mix(in oklab, var(--accent) 14%, transparent) 10px 20px
+    );
+}
+
+:root[data-kit="spain"] .kit-stripe {
+  background-image:
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--primary) 28%, transparent) 0 34%,
+      color-mix(in oklab, var(--gold) 22%, transparent) 34% 66%,
+      color-mix(in oklab, var(--primary) 28%, transparent) 66% 100%
+    );
+}
+
+@keyframes mm-float-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@utility mm-float-in {
+  animation: mm-float-in 0.45s ease-out both;
 }
 
 /* Solana wallet modal above sticky header, bottom nav, and soccer backdrop */

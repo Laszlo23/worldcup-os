@@ -501,6 +501,18 @@ export async function processScoreUpdate(
         console.error("live market event settle:", err);
       }
     }
+
+    if (mapped === "yellow" && txlineSeq) {
+      try {
+        const { maybeOnYellowEngagement } = await import("./engagement-polls");
+        await maybeOnYellowEngagement({
+          matchId: String(match.id),
+          eventKey: `yellow_${txlineSeq}`,
+        });
+      } catch (err) {
+        console.error("engagement yellow hook:", err);
+      }
+    }
   }
 
   if (status === "finished" && !wasFinished) {
