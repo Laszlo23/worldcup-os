@@ -47,7 +47,12 @@ export default defineHandler(async (event) => {
       userPubkey: wallet,
       expectedPrefix: memoPrefix,
     });
-    if (!valid) return errorResponse("On-chain vote receipt not found or invalid", 400);
+    if (!valid) {
+      return errorResponse(
+        "On-chain vote receipt not found or invalid — the Solana memo tx must confirm with your wallet as signer. Wait and retry.",
+        400,
+      );
+    }
 
     const result = await voteOnPoll(user.id, pollId, choice, body.txSignature);
     if (!result.ok) {

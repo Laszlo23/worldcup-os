@@ -98,7 +98,14 @@ export function MomentCard({ moment, size = "lg" }: { moment: EngagementMoment; 
       if (err instanceof ApiError && err.status === 401) {
         toast.error("Session expired — reconnect wallet");
       } else {
-        toast.error(err instanceof Error ? err.message : "Claim failed");
+        const msg = err instanceof Error ? err.message : "Claim failed";
+        const hint =
+          /program that does not exist|ProgramAccountNotFound/i.test(msg)
+            ? "Network memo program issue — refresh and try again."
+            : /blockhash|expired/i.test(msg)
+              ? "Transaction expired — tap Claim again."
+              : msg;
+        toast.error(hint);
       }
     } finally {
       setStep("idle");

@@ -40,7 +40,12 @@ export default defineHandler(async (event) => {
       userPubkey: wallet,
       expectedPrefix: memoPrefix,
     });
-    if (!valid) return errorResponse("On-chain moment claim not verified", 400);
+    if (!valid) {
+      return errorResponse(
+        "On-chain moment claim not verified — the Solana memo tx must confirm with your wallet as signer. Wait a few seconds and retry.",
+        400,
+      );
+    }
 
     const metadataUri = `https://match.buildingcultureid.space/moments/${momentId}`;
     const result = await recordMomentClaim({

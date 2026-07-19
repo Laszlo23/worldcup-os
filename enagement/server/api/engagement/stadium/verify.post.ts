@@ -40,7 +40,12 @@ export default defineHandler(async (event) => {
       userPubkey: wallet,
       expectedPrefix: `matchmind:stadium:${body.matchId}`,
     });
-    if (!valid) return errorResponse("Stadium proof not verified on-chain", 400);
+    if (!valid) {
+      return errorResponse(
+        "Stadium proof not verified on-chain — the Solana memo tx must confirm with your wallet as signer. Wait and retry.",
+        400,
+      );
+    }
 
     await recordStadiumProof({
       userId: user.id,
