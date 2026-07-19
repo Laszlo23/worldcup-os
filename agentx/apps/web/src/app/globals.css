@@ -15,27 +15,31 @@
   --color-green: var(--green-signal);
   --color-purple: var(--purple-ai);
   --color-border: var(--border);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-mono);
+  --font-sans: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jb-mono), "JetBrains Mono", ui-monospace, monospace;
   --radius-lg: var(--radius);
 }
 
 :root {
-  --background: oklch(0.12 0.02 250);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.16 0.022 250);
-  --card-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.78 0.14 85);
-  --primary-foreground: oklch(0.12 0.02 250);
-  --secondary: oklch(0.20 0.025 250);
-  --muted: oklch(0.22 0.02 250);
-  --muted-foreground: oklch(0.65 0.02 250);
-  --accent: oklch(0.65 0.18 300);
-  --gold: oklch(0.78 0.14 85);
-  --green-signal: oklch(0.75 0.22 155);
-  --purple-ai: oklch(0.65 0.18 300);
-  --border: oklch(0.28 0.03 250 / 0.5);
-  --radius: 0.875rem;
+  /* Stadium Night Glass — AgentX (gold + purple) */
+  --background: oklch(0.1 0.028 245);
+  --foreground: oklch(0.97 0.01 95);
+  --card: oklch(0.155 0.03 245);
+  --card-foreground: oklch(0.97 0.01 95);
+  --primary: oklch(0.82 0.145 88);
+  --primary-foreground: oklch(0.14 0.03 245);
+  --secondary: oklch(0.19 0.03 245);
+  --muted: oklch(0.21 0.025 245);
+  --muted-foreground: oklch(0.68 0.03 245);
+  --accent: oklch(0.68 0.14 295);
+  --gold: oklch(0.82 0.145 88);
+  --green-signal: oklch(0.78 0.19 155);
+  --purple-ai: oklch(0.68 0.14 295);
+  --border: oklch(0.34 0.04 245 / 0.45);
+  --radius: 1rem;
+  --gradient-brand: linear-gradient(135deg, oklch(0.88 0.14 92), oklch(0.68 0.14 295));
+  --shadow-brand: 0 0 28px oklch(0.82 0.145 88 / 0.28);
 }
 
 * {
@@ -45,45 +49,134 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-sans);
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.035em;
 }
 
 .glass {
-  background: oklch(0.18 0.022 250 / 0.7);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  border: 1px solid oklch(0.35 0.03 250 / 0.3);
+  background:
+    linear-gradient(160deg, oklch(1 0 0 / 5%) 0%, oklch(1 0 0 / 1%) 100%),
+    color-mix(in oklab, var(--background) 72%, transparent);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 8%);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.06),
+    0 12px 40px oklch(0.08 0.03 245 / 0.45);
+}
+
+.glass-strong {
+  background:
+    linear-gradient(165deg, oklch(1 0 0 / 8%) 0%, oklch(1 0 0 / 2%) 100%),
+    color-mix(in oklab, var(--card) 78%, transparent);
+  backdrop-filter: blur(32px) saturate(170%);
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
+  border: 1px solid oklch(0.7 0.1 88 / 0.18);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.08),
+    0 18px 50px oklch(0.06 0.03 245 / 0.55);
+}
+
+.brand-mark {
+  box-shadow: var(--shadow-brand);
 }
 
 .pitch-grid {
   background-image:
-    linear-gradient(oklch(0.78 0.2 155 / 8%) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.78 0.2 155 / 8%) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 75%);
+    linear-gradient(oklch(0.82 0.14 88 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.82 0.14 88 / 6%) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 35%, black 15%, transparent 78%);
 }
 
 .gold-gradient {
-  background: linear-gradient(135deg, oklch(0.78 0.14 85), oklch(0.68 0.12 75));
+  background: linear-gradient(135deg, oklch(0.88 0.14 92), oklch(0.72 0.13 78));
+}
+
+.gold-text {
+  background: linear-gradient(120deg, oklch(0.92 0.12 95), oklch(0.72 0.14 80));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .purple-glow {
-  box-shadow: 0 0 40px oklch(0.65 0.18 300 / 0.15);
+  box-shadow: 0 0 48px oklch(0.68 0.14 295 / 0.12);
 }
 
 .gold-glow {
-  box-shadow: 0 0 40px oklch(0.78 0.14 85 / 0.2);
+  box-shadow: 0 0 48px oklch(0.82 0.145 88 / 0.18);
+}
+
+.ambient-orbs::before,
+.ambient-orbs::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.ambient-orbs::before {
+  width: 220px;
+  height: 220px;
+  top: -40px;
+  right: -60px;
+  background: oklch(0.82 0.145 88 / 0.12);
+}
+
+.ambient-orbs::after {
+  width: 180px;
+  height: 180px;
+  bottom: 20%;
+  left: -50px;
+  background: oklch(0.68 0.14 295 / 0.08);
 }
 
 @keyframes pulse-gold {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  50% { opacity: 0.65; }
+}
+
+@keyframes live-dot {
+  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 oklch(0.78 0.19 155 / 0.55); }
+  50% { transform: scale(1.15); opacity: 0.85; box-shadow: 0 0 0 6px oklch(0.78 0.19 155 / 0); }
+}
+
+@keyframes score-rise {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-pulse-gold {
   animation: pulse-gold 2s ease-in-out infinite;
+}
+
+.animate-live-dot {
+  animation: live-dot 1.6s ease-in-out infinite;
+}
+
+.animate-score-rise {
+  animation: score-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
 }
 
 /* Solana wallet modal above sticky header / bottom nav */

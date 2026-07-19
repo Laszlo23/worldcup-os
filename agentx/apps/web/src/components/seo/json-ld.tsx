@@ -16,7 +16,7 @@ export function HomeJsonLd() {
         "@type": "Organization",
         name: "TxLINE AI Trader",
         url: SITE,
-        logo: `${SITE}/icon.svg`,
+        logo: `${SITE}/brand/logo.png`,
       },
     ],
   };

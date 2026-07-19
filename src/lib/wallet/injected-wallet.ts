@@ -146,8 +146,11 @@ export function injectedSignMessage(wallet: InjectedWallet) {
     return phantomSignMessage(wallet.provider);
   }
   return async (message: Uint8Array): Promise<Uint8Array> => {
-    const { signature } = await wallet.provider.signMessage(message);
-    return signature;
+    const result = await wallet.provider.signMessage(message);
+    if (result instanceof Uint8Array) return result;
+    const signature = (result as { signature?: Uint8Array })?.signature;
+    if (signature instanceof Uint8Array) return signature;
+    throw new Error(`${wallet.name} did not return a signature — approve the login message and retry`);
   };
 }
 

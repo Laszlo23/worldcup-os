@@ -52,36 +52,39 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-gold: var(--gold);
   --color-live: var(--live);
-  --font-display: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 :root {
   --radius: 0.75rem;
-  /* Obsidian pitch */
-  --background: oklch(0.14 0.015 240);
+  /* Stadium Night Glass — MatchMind (cyan + pitch green) */
+  --background: oklch(0.1 0.02 240);
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.18 0.018 240);
+  --card: oklch(0.15 0.02 240);
   --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.16 0.015 240);
+  --popover: oklch(0.12 0.018 240);
   --popover-foreground: oklch(0.98 0 0);
   /* Stadium green */
   --primary: oklch(0.82 0.22 155);
-  --primary-foreground: oklch(0.14 0.015 240);
-  --secondary: oklch(0.24 0.02 240);
+  --primary-foreground: oklch(0.12 0.02 240);
+  --secondary: oklch(0.22 0.02 240);
   --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.22 0.018 240);
+  --muted: oklch(0.2 0.018 240);
   --muted-foreground: oklch(0.65 0.02 240);
   /* Electric cyan */
   --accent: oklch(0.82 0.16 210);
-  --accent-foreground: oklch(0.14 0.015 240);
+  --accent-foreground: oklch(0.12 0.02 240);
   --destructive: oklch(0.68 0.24 25);
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.28 0.02 240);
   --input: oklch(0.28 0.02 240);
-  --ring: oklch(0.82 0.22 155);
+  --ring: oklch(0.82 0.16 210);
   --gold: oklch(0.82 0.15 85);
   --live: oklch(0.65 0.25 25);
+  --gradient-brand: linear-gradient(135deg, oklch(0.82 0.22 155), oklch(0.82 0.16 210));
+  --shadow-brand: 0 0 28px oklch(0.82 0.16 210 / 0.3);
   --chart-1: oklch(0.82 0.22 155);
   --chart-2: oklch(0.82 0.16 210);
   --chart-3: oklch(0.82 0.15 85);
@@ -109,10 +112,15 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   html { color-scheme: dark; }
+  h1, h2, h3, h4, h5 {
+    font-family: var(--font-display);
+    letter-spacing: -0.035em;
+  }
 }
 
 @keyframes mm-pulse-glow {
@@ -136,13 +144,76 @@
   animation: mm-shimmer 3.5s linear infinite;
 }
 @utility mm-hairline { border: 1px solid color-mix(in oklab, white 8%, transparent); }
+@utility glass {
+  background:
+    linear-gradient(160deg, oklch(1 0 0 / 5%) 0%, oklch(1 0 0 / 1%) 100%),
+    color-mix(in oklab, var(--color-background) 72%, transparent);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 8%);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 5%);
+}
+@utility glass-strong {
+  background:
+    linear-gradient(165deg, oklch(1 0 0 / 8%) 0%, oklch(1 0 0 / 2%) 100%),
+    color-mix(in oklab, var(--color-card) 78%, transparent);
+  backdrop-filter: blur(32px) saturate(170%);
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
+  border: 1px solid oklch(0.82 0.16 210 / 16%);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 7%),
+    0 16px 48px -20px oklch(0 0 0 / 55%);
+}
+/* Alias for existing MatchMind chrome */
 @utility mm-glass {
-  background: color-mix(in oklab, var(--color-background) 75%, transparent);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background:
+    linear-gradient(160deg, oklch(1 0 0 / 5%) 0%, oklch(1 0 0 / 1%) 100%),
+    color-mix(in oklab, var(--color-background) 72%, transparent);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 8%);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 5%);
+}
+@utility section-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
 }
 @utility text-glow-primary {
   text-shadow: 0 0 20px color-mix(in oklab, var(--color-primary) 60%, transparent);
+}
+@utility text-glow-accent {
+  text-shadow: 0 0 20px color-mix(in oklab, var(--color-accent) 55%, transparent);
+}
+
+.brand-mark {
+  box-shadow: var(--shadow-brand);
+}
+
+.ambient-orbs::before,
+.ambient-orbs::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  pointer-events: none;
+}
+.ambient-orbs::before {
+  width: 220px;
+  height: 220px;
+  top: -40px;
+  right: -60px;
+  background: oklch(0.82 0.16 210 / 0.14);
+}
+.ambient-orbs::after {
+  width: 180px;
+  height: 180px;
+  bottom: 20%;
+  left: -50px;
+  background: oklch(0.82 0.22 155 / 0.1);
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -150,8 +221,8 @@
 
 .pitch-grid {
   background-image:
-    linear-gradient(oklch(0.78 0.2 155 / 8%) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.78 0.2 155 / 8%) 1px, transparent 1px);
+    linear-gradient(oklch(0.82 0.16 210 / 8%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.82 0.16 210 / 8%) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 75%);
 }

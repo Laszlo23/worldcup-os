@@ -22,7 +22,10 @@ async def run_scores_stream(broadcast: Callable[[str, dict], Awaitable[None]] | 
                 if match:
                     touch_event()
                     if broadcast:
-                        await broadcast("matches", {"type": "match_update", "match": serialize_match(match)})
+                        try:
+                            await broadcast("matches", {"type": "match_update", "match": serialize_match(match)})
+                        except Exception as broadcast_err:
+                            ingestion_state["last_error"] = str(broadcast_err)
         except Exception as e:
             ingestion_state["scores_connected"] = False
             ingestion_state["last_error"] = str(e)
@@ -44,7 +47,10 @@ async def run_odds_stream(broadcast: Callable[[str, dict], Awaitable[None]] | No
                 if match:
                     touch_event()
                     if broadcast:
-                        await broadcast("matches", {"type": "odds_update", "match": serialize_match(match)})
+                        try:
+                            await broadcast("matches", {"type": "odds_update", "match": serialize_match(match)})
+                        except Exception as broadcast_err:
+                            ingestion_state["last_error"] = str(broadcast_err)
         except Exception as e:
             ingestion_state["odds_connected"] = False
             ingestion_state["last_error"] = str(e)

@@ -291,7 +291,8 @@ function ConnectWalletButtonCore({
 
     setConnectingMobile(true);
     try {
-      const waitMs = inWalletBrowser || isMobileViewport() ? 8000 : 3500;
+      // Keep resolution short so the button does not appear stuck when no wallet is installed.
+      const waitMs = inWalletBrowser ? 5000 : isMobileViewport() ? 2500 : 900;
       const injected = await waitForAnyInjectedWallet(waitMs);
       if (injected) {
         try {
@@ -301,6 +302,10 @@ function ConnectWalletButtonCore({
           console.error("[wallet connect]", err);
           if (message.toLowerCase().includes("user rejected") || message.toLowerCase().includes("cancel")) {
             toast.message("Connection cancelled");
+          } else if (/failed to fetch dynamically imported module|loading chunk|importing a module script failed/i.test(message)) {
+            toast.error("App update required", {
+              description: "Hard refresh this page (Cmd/Ctrl+Shift+R), then connect again.",
+            });
           } else {
             toast.error(message);
             setShowInjectionHelp(true);
@@ -309,7 +314,7 @@ function ConnectWalletButtonCore({
         return;
       }
 
-      await waitForConnectableWallet(inWalletBrowser ? 5000 : 3000);
+      await waitForConnectableWallet(inWalletBrowser ? 2500 : 800);
       openWalletPicker();
     } finally {
       setConnectingMobile(false);
@@ -346,13 +351,11 @@ function ConnectWalletButtonCore({
   }
 
   const connectLabel =
-    phantomStatus === "checking" || connectingMobile
+    connectingMobile || connecting
       ? "Connecting…"
-      : connecting
-        ? "Connecting…"
-        : mobile
-          ? "Connect"
-          : "Connect Wallet";
+      : mobile
+        ? "Connect"
+        : "Connect Wallet";
 
   if (!wallet.connected) {
     return (
@@ -361,7 +364,7 @@ function ConnectWalletButtonCore({
           size={size}
           type="button"
           onClick={() => void handleConnectClick()}
-          disabled={connecting || connectingMobile || phantomStatus === "checking"}
+          disabled={connecting || connectingMobile}
           className="bg-gradient-primary text-primary-foreground border-0 hover:opacity-90 glow-primary font-medium w-full sm:w-auto min-h-[44px]"
         >
           <Wallet className="h-4 w-4" />

@@ -44,7 +44,10 @@ async def run_poll_fallback(
                     if match:
                         touch_event()
                         if broadcast:
-                            await broadcast("matches", {"type": "match_update", "match": serialize_match(match)})
+                            try:
+                                await broadcast("matches", {"type": "match_update", "match": serialize_match(match)})
+                            except Exception as broadcast_err:
+                                ingestion_state["last_error"] = str(broadcast_err)
             ingestion_state["last_error"] = None
         except Exception as e:
             ingestion_state["last_error"] = str(e)

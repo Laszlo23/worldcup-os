@@ -29,7 +29,9 @@ export const api = {
       txlineAuthenticated?: boolean;
     }>("/api/health"),
   liveMatches: (status?: string) =>
-    apiFetch<{ matches: import("./types").Match[] }>(`/api/live-matches${status ? `?status=${status}` : ""}`),
+    apiFetch<{ matches: import("./types").Match[]; featured?: import("./types").Match }>(
+      `/api/live-matches${status ? `?status=${status}` : ""}`,
+    ),
   match: (id: string) => apiFetch<{ match: import("./types").Match }>(`/api/matches/${id}`),
   matchLiveMarkets: (id: string) =>
     apiFetch<{ markets: import("./types").LiveMarket[] }>(`/api/matches/${id}/markets?live=true`),

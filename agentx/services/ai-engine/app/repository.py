@@ -129,6 +129,12 @@ async def run_agent_migrations() -> None:
         await pgdb.run_agent_migrations()
 
 
+async def run_supplemental_migrations() -> None:
+    if await check_db():
+        from app import db as pgdb
+        await pgdb.run_supplemental_migrations()
+
+
 async def get_latest_portfolio() -> dict | None:
     if await check_db():
         from app import db as pgdb

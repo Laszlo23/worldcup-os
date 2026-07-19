@@ -7,10 +7,23 @@ const GOAL_QUESTIONS = [
   { text: "Will the next event be a corner?", kind: "corner_in_window" as const },
 ];
 
+const MOMENT_TITLE_SUFFIXES = ["Strike", "Finish", "Curler", "Header", "Thunderbolt", "Clinical"] as const;
+
 function pickQuestion(minute: number) {
   if (minute < 45) return GOAL_QUESTIONS[0]!;
   if (minute < 70) return GOAL_QUESTIONS[2]!;
   return GOAL_QUESTIONS[1]!;
+}
+
+function cinematicMomentTitle(player: string | undefined, minute: number | undefined, eventKey: string): string {
+  let hash = 0;
+  for (let i = 0; i < eventKey.length; i++) hash = (hash * 31 + eventKey.charCodeAt(i)) >>> 0;
+  const suffix = MOMENT_TITLE_SUFFIXES[hash % MOMENT_TITLE_SUFFIXES.length]!;
+  const m = minute ?? 0;
+  if (player && m > 0) return `The ${m}' ${suffix}`;
+  if (player) return `${player.split(" ").pop() ?? player} ${suffix}`;
+  if (m > 0) return `The ${m}' ${suffix}`;
+  return `Match ${suffix}`;
 }
 
 export async function maybeOnGoalEngagement(params: {
@@ -33,7 +46,7 @@ export async function maybeOnGoalEngagement(params: {
   await createMomentFromGoal({
     matchId: params.matchId,
     eventKey: params.eventKey,
-    title: params.player ? `${params.player} Moment` : "Match Moment",
+    title: cinematicMomentTitle(params.player, params.minute, params.eventKey),
     player: params.player,
     minute: params.minute,
   });

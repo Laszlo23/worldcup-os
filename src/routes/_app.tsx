@@ -43,11 +43,11 @@ function AppLayout() {
   return (
     <SidebarProvider className="flex-col">
       <DevnetBanner className="w-full shrink-0" />
-      <SoccerBackdrop variant="stadium" />
+      <SoccerBackdrop variant="stadium" intensity="hero" />
       <div className="relative z-10 flex min-h-0 w-full min-w-0 flex-1">
         <AppSidebar />
         <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 min-h-14 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 pt-[env(safe-area-inset-top)] border-b border-border backdrop-blur-xl bg-background/60">
+          <header className="sticky top-0 z-30 min-h-14 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 pt-[env(safe-area-inset-top)] border-b border-primary/15 glass-strong">
             <SidebarTrigger className="shrink-0" />
             <Separator orientation="vertical" className="h-5 hidden sm:block" />
             <div className="flex items-center gap-2 text-sm min-w-0 flex-1">

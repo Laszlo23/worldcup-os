@@ -2,16 +2,28 @@ const SOCCER_BASE = "/soccer";
 
 export const SOCCER_MOMENTS = {
   volley: {
-    src: "/moment-volley.jpg",
+    src: "/moment-volley-night.jpg",
     alt: "Player strikes a volley under stadium floodlights",
   },
   save: {
-    src: "/moment-save.jpg",
+    src: "/moment-save-dive.jpg",
     alt: "Goalkeeper makes a full-stretch save",
   },
   topbin: {
-    src: "/moment-topbin.jpg",
+    src: "/moment-topbin-curl.jpg",
     alt: "Ball bends into the top corner of the net",
+  },
+  header: {
+    src: "/moment-header.jpg",
+    alt: "Player leaps for a headed goal",
+  },
+  celebration: {
+    src: "/moment-celebration.jpg",
+    alt: "Player celebration after scoring",
+  },
+  thunderbolt: {
+    src: "/moment-thunderbolt.jpg",
+    alt: "Long-range thunderbolt strike on goal",
   },
 } as const;
 
@@ -103,3 +115,13 @@ export type SoccerRewardKey = keyof typeof SOCCER_REWARDS;
 export function getSoccerBackground(variant: SoccerBackdropVariant) {
   return SOCCER_BACKGROUNDS[variant];
 }
+
+/** Shared moment art pool for watermarks / fallbacks */
+export const SOCCER_MOMENT_FALLBACKS = [
+  SOCCER_MOMENTS.topbin.src,
+  SOCCER_MOMENTS.volley.src,
+  SOCCER_MOMENTS.save.src,
+  SOCCER_MOMENTS.header.src,
+  SOCCER_MOMENTS.celebration.src,
+  SOCCER_MOMENTS.thunderbolt.src,
+] as const;

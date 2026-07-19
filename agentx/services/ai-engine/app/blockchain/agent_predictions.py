@@ -252,7 +252,7 @@ async def auto_claim_agent_winnings() -> int:
     rows = await pgdb.fetch_all(
         """
         SELECT p.id, p.external_id, p.payout, p.amount, u.wallet_pubkey AS treasury_pubkey, a.name AS agent_name
-        FROM predictions p
+        FROM wallet_predictions p
         JOIN users u ON u.id = p.user_id
         JOIN agents a ON a.treasury_pubkey = u.wallet_pubkey
         WHERE p.status = 'won' AND p.claimed = false AND p.payout > 0
@@ -268,11 +268,11 @@ async def auto_claim_agent_winnings() -> int:
         if not tx_sig:
             continue
         await pgdb.execute(
-            "UPDATE predictions SET claimed = true, status = 'settled', updated_at = NOW() WHERE id = $1",
+            "UPDATE wallet_predictions SET claimed = true, status = 'settled', updated_at = NOW() WHERE id = $1",
             row["id"],
         )
         await pgdb.execute(
-            "UPDATE escrows SET status = 'claimed', updated_at = NOW() WHERE prediction_id = $1",
+            "UPDATE wallet_escrows SET status = 'claimed', updated_at = NOW() WHERE prediction_id = $1",
             row["id"],
         )
         agent_name = str(row.get("agent_name", ""))

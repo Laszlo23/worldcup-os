@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, ChevronDown, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ChevronDown, Play, ShieldCheck } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import {
   PROOF_DEMO_EVENT,
   PROOF_ENGINE_STAGES,
@@ -244,6 +246,14 @@ export function TxlineProofEngine() {
             )}
           </div>
         </motion.div>
+
+        <div className="text-center mt-8">
+          <Button asChild variant="outline" className="glass neon-edge-sm gap-2 font-mono text-xs uppercase tracking-wider">
+            <Link to="/replay" className="inline-flex items-center gap-2">
+              <Play className="h-4 w-4" /> Run full Proof Replay
+            </Link>
+          </Button>
+        </div>
       </div>
     </section>
   );

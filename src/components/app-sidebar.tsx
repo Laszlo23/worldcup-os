@@ -48,14 +48,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="px-4 py-5">
+      <SidebarHeader className="px-4 py-5 border-b border-sidebar-border/80">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="relative h-9 w-9 rounded-xl bg-gradient-primary flex items-center justify-center glow-primary">
-            <Trophy className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img
+            src="/brand/logo.svg"
+            alt="World Cup OS"
+            width={36}
+            height={36}
+            className="brand-mark relative h-9 w-9 rounded-xl transition-transform group-hover:scale-105"
+          />
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="font-display font-bold text-base tracking-tight">World Cup OS</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">by TxLINE · Solana</span>
+            <span className="text-[10px] text-primary/75 uppercase tracking-[0.22em] font-mono">WMOS · TxLINE</span>
           </div>
         </Link>
       </SidebarHeader>

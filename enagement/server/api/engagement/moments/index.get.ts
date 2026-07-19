@@ -25,9 +25,9 @@ export default defineHandler(async (event) => {
         player: m.player ?? "",
         minute: m.minute ?? 0,
         rarity: m.rarity,
-        image: m.image_url ?? "/moment-volley.jpg",
+        image: m.image_url ?? "/moment-volley-night.jpg",
         serial: m.serial_label ?? "",
-        match: m.match_external_id,
+        match: m.match_label || m.match_external_id,
         claimed: m.claimed,
       })),
     });

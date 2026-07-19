@@ -10,7 +10,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import bs58 from "bs58";
 import { Keypair } from "@solana/web3.js";
-import { SolanaSDK, buildRegistrationFileJson, ServiceType, IPFSClient } from "8004-solana";
+import { SolanaSDK, IPFSClient } from "8004-solana";
+import { buildAgent8004RegistrationMetadata } from "../src/lib/agent-8004-metadata.ts";
 import { loadEnv } from "./load-env.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -117,19 +118,15 @@ async function main() {
     process.exit(1);
   }
 
-  const metadata = buildRegistrationFileJson({
+  const metadata = buildAgent8004RegistrationMetadata({
     name: AGENT_NAME,
     description:
       "TxLINE sports intelligence stack — World Cup OS predictions, MatchMind fan engagement, AgentX autonomous arena.",
     image: `${WMOS_URL}/partners/txline.svg`,
-    services: [
-      { type: ServiceType.MCP, value: `${AGENTX_URL}/api/health` },
-      { type: ServiceType.A2A, value: `${WMOS_URL}/api/earn/listings` },
-      { type: ServiceType.WALLET, value: deployer.publicKey.toBase58() },
-    ],
-    skills: ["advanced_reasoning_planning/strategic_planning"],
-    domains: ["finance_and_business/finance"],
-    x402Support: false,
+    wmosUrl: WMOS_URL,
+    agentxUrl: AGENTX_URL,
+    walletPubkey: deployer.publicKey.toBase58(),
+    network: "devnet",
   });
 
   const tokenUri = await pinMetadata(metadata);
@@ -150,6 +147,31 @@ async function main() {
     result && typeof result === "object" && "signature" in result ? String(result.signature ?? "") : undefined;
 
   if (!asset) throw new Error("registerAgent did not return asset pubkey");
+
+  const finalMetadata = buildAgent8004RegistrationMetadata({
+    name: AGENT_NAME,
+    description:
+      "TxLINE sports intelligence stack — World Cup OS predictions, MatchMind fan engagement, AgentX autonomous arena.",
+    image: `${WMOS_URL}/partners/txline.svg`,
+    wmosUrl: WMOS_URL,
+    agentxUrl: AGENTX_URL,
+    walletPubkey: deployer.publicKey.toBase58(),
+    assetPubkey: asset,
+    network: "devnet",
+  });
+
+  const finalUri = await pinMetadata(finalMetadata);
+  try {
+    await sdk.setAgentUri(asset, finalUri);
+    console.log("Updated on-chain URI:", finalUri);
+  } catch (err) {
+    console.warn("setAgentUri skipped:", err instanceof Error ? err.message : err);
+  }
+
+  writeFileSync(
+    path.join(root, "public", "agent-8004-registration.json"),
+    `${JSON.stringify(finalMetadata, null, 2)}\n`,
+  );
 
   const envPath = path.join(root, ".env");
   upsertEnvVar(envPath, "AGENT_8004_ASSET", asset);

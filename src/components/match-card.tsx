@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { KickoffCountdown } from "@/components/kickoff-countdown";
 import { MapPin, Radio, ShieldCheck, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SOCCER_MOMENTS } from "@/lib/soccer-assets";
 
 import { formatKickoffTime } from "@/lib/format-time";
 
@@ -35,16 +36,23 @@ export function MatchCard({ match }: { match: Match }) {
         transition={{ type: "spring", stiffness: 400, damping: 28 }}
         className="h-full min-w-0"
       >
-        <article className="broadcast-card @container rounded-xl p-4 sm:p-5 cursor-pointer h-full relative overflow-hidden group hover:border-primary/30 transition-colors duration-300 min-w-0">
+        <article className="glass-strong neon-edge-sm @container rounded-2xl p-4 sm:p-5 cursor-pointer h-full relative overflow-hidden group hover:border-primary/40 transition-all duration-300 min-w-0 hover:shadow-[0_0_40px_-16px_oklch(0.8_0.19_155_/_0.35)]">
+          <img
+            src={live || awaiting ? SOCCER_MOMENTS.volley.src : SOCCER_MOMENTS.topbin.src}
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.12] transition duration-500 group-hover:opacity-[0.18] group-hover:scale-105"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-background/80 via-background/55 to-background/85" />
           {(live || awaiting) && (
             <>
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-              <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-3xl group-hover:bg-primary/15 transition-colors" />
+              <div className="absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+              <div className="absolute -top-12 -right-12 z-[1] h-32 w-32 rounded-full bg-primary/12 blur-3xl group-hover:bg-primary/18 transition-colors" />
             </>
           )}
 
           {/* Header: stage + kickoff on one row — status badge below (no overlap) */}
-          <div className="mb-4 space-y-2 min-w-0">
+          <div className="relative z-10 mb-4 space-y-2 min-w-0">
             <div className="flex items-center justify-between gap-3 min-w-0">
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground truncate min-w-0">
                 {match.stage}
@@ -106,7 +114,7 @@ export function MatchCard({ match }: { match: Match }) {
             )}
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 @sm:gap-3 mb-4">
+          <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 @sm:gap-3 mb-4">
             <div className="flex flex-col items-center gap-1 min-w-0 @sm:items-start">
               <span className="text-2xl @sm:text-3xl leading-none">{match.home.flag}</span>
               <div className="text-center @sm:text-left min-w-0 w-full">
@@ -147,13 +155,13 @@ export function MatchCard({ match }: { match: Match }) {
           </div>
 
           {match.stadium ? (
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-3 font-mono min-w-0">
+            <div className="relative z-10 flex items-center gap-1.5 text-[10px] text-muted-foreground mb-3 font-mono min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
               <span className="truncate">{match.stadium}</span>
             </div>
           ) : null}
 
-          <div className="border-t border-border/60 pt-3 space-y-2">
+          <div className="relative z-10 border-t border-border/60 pt-3 space-y-2">
             {odds ? (
               <div className="grid grid-cols-3 gap-2 font-mono text-[11px]">
                 <OddsCell label="1" value={odds.home.toFixed(2)} />

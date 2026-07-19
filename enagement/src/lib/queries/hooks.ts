@@ -109,6 +109,9 @@ export interface EngagementPoll {
   noReward: number;
   probability: number;
   voters: number;
+  yesVotes?: number;
+  noVotes?: number;
+  userChoice?: "yes" | "no" | null;
   outcome: string | null;
   resolved: boolean;
 }
@@ -139,7 +142,8 @@ export interface EngagementMoment {
   claimed: boolean;
 }
 
-export function useEngagementMoments(matchId?: string) {
+export function useEngagementMoments(matchId?: string, opts?: { requireMatch?: boolean }) {
+  const requireMatch = opts?.requireMatch ?? true;
   return useQuery({
     queryKey: queryKeys.moments(matchId),
     queryFn: async () => {
@@ -147,7 +151,7 @@ export function useEngagementMoments(matchId?: string) {
       const res = await apiFetch<{ moments: EngagementMoment[] }>(`/api/engagement/moments${qs}`);
       return res.moments;
     },
-    enabled: Boolean(matchId),
+    enabled: requireMatch ? Boolean(matchId) : true,
     refetchInterval: 10_000,
   });
 }

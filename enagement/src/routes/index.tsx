@@ -57,9 +57,14 @@ function MatchScreen() {
   const featuredMoment = moments[0];
 
   return (
-    <AppShell title="Live Match" subtitle={`${match.stage} · ${match.stadium}`}>
+    <AppShell
+      title="Live Match"
+      subtitle={`${match.stage} · ${match.stadium}`}
+      backdropVariant="crowd"
+      backdropIntensity="hero"
+    >
       <section className="px-4 pt-5">
-        <div>
+        <div className="glass-strong rounded-2xl p-4 ambient-orbs">
           <div className="flex items-center justify-center gap-2">
             <span className="size-1.5 rounded-full bg-live mm-live-dot" />
             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-live">
@@ -69,7 +74,7 @@ function MatchScreen() {
           <div className="mt-4 flex items-end justify-between">
             <TeamBadge code={match.home.code} name={match.home.name} align="left" />
             <div className="flex flex-col items-center px-2">
-              <div className="mt-1 flex items-baseline gap-2 text-6xl font-black italic tracking-tighter tabular-nums text-glow-primary">
+              <div className="mt-1 flex items-baseline gap-2 font-display text-6xl font-bold italic tracking-tighter tabular-nums text-glow-primary">
                 <span>{match.scoreHome}</span>
                 <span className="text-muted-foreground/60">—</span>
                 <span>{match.scoreAway}</span>
@@ -78,7 +83,7 @@ function MatchScreen() {
             <TeamBadge code={match.away.code} name={match.away.name} align="right" />
           </div>
           <div className="mt-5 space-y-2">
-            <div className="relative h-6 overflow-hidden rounded-md border border-border bg-card p-1">
+            <div className="relative h-6 overflow-hidden rounded-md border border-border/60 glass p-1">
               <motion.div
                 initial={false}
                 animate={{ width: `${momentumPct}%` }}
@@ -98,7 +103,7 @@ function MatchScreen() {
         <SectionLabel>TxLINE Feed</SectionLabel>
         <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
           {events.slice(0, 6).map((e) => (
-            <div key={e.id} className="flex gap-3 rounded-xl border-l-2 border-accent bg-accent/5 p-3 text-sm">
+            <div key={e.id} className="flex gap-3 rounded-xl border-l-2 border-accent glass p-3 text-sm">
               <Sparkles className="size-3.5 text-accent shrink-0 mt-0.5" />
               <div>
                 <div className="font-mono text-[9px] uppercase text-accent">{e.title}</div>
@@ -114,31 +119,68 @@ function MatchScreen() {
 
       {featured ? (
         <section className="mt-6 px-4">
-          <SectionLabel>Featured prediction</SectionLabel>
+          <div className="mb-2 flex items-center justify-between">
+            <SectionLabel>Featured XP poll</SectionLabel>
+            <Link to="/predict" className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
+              All polls <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
           <div className="mt-2">
             <PredictionCard p={featured} />
           </div>
         </section>
       ) : pollsLoading ? null : (
-        <p className="mt-6 px-4 text-sm text-muted-foreground">New XP polls unlock on the next TxLINE goal or event.</p>
+        <section className="mt-6 px-4">
+          <div className="glass rounded-xl p-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              New XP polls unlock on the next TxLINE goal or event.
+            </p>
+            <Link to="/predict" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-accent">
+              Open Predict tab <ArrowRight className="size-3" />
+            </Link>
+          </div>
+        </section>
       )}
 
       {featuredMoment ? (
         <section className="mt-8 px-4">
           <div className="mb-3 flex items-center justify-between">
-            <SectionLabel>Latest sticker drop</SectionLabel>
-            <Link to="/moments" className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+            <SectionLabel>Latest moment drop</SectionLabel>
+            <Link to="/moments" className="inline-flex items-center gap-1 text-xs font-semibold text-accent">
               Album <ArrowRight className="size-3.5" />
             </Link>
           </div>
-          <MomentCard moment={featuredMoment} />
+          <div className="glass-strong rounded-2xl p-2.5">
+            <MomentCard moment={featuredMoment} />
+          </div>
           {!featuredMoment.claimed ? (
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              Claim on Solana to add this goal sticker to your album.
+              Connect wallet → sign Solana memo → earn +50 XP and unlock the sticker.
             </p>
           ) : null}
         </section>
-      ) : null}
+      ) : (
+        <section className="mt-8 px-4 pb-2">
+          <div className="glass rounded-xl p-4 text-center text-sm text-muted-foreground">
+            Goal moments drop here when TxLINE reports a goal.{" "}
+            <Link to="/moments" className="font-semibold text-accent">
+              Open album
+            </Link>
+          </div>
+        </section>
+      )}
+
+      <section className="mt-4 flex flex-wrap justify-center gap-4 px-4 pb-4 text-xs font-semibold">
+        <Link to="/predict" className="text-accent">
+          Predict →
+        </Link>
+        <Link to="/stadium" className="text-muted-foreground hover:text-accent">
+          Stadium check-in
+        </Link>
+        <Link to="/rewards" className="text-muted-foreground hover:text-accent">
+          Rewards
+        </Link>
+      </section>
     </AppShell>
   );
 }

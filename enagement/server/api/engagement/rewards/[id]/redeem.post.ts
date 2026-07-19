@@ -23,8 +23,17 @@ export default defineHandler(async (event) => {
   try {
     const user = await upsertUser(wallet);
     const result = await redeemReward(user.id, rewardId);
-    if (!result.ok) return errorResponse(result.reason ?? "redeem_failed", 400);
+    if (!result.ok) {
+      const messages: Record<string, string> = {
+        already_redeemed: "You already redeemed this reward",
+        insufficient_xp: "Not enough XP — earn more from polls and moments",
+        reward_not_found: "Reward not found",
+      };
+      const reason = result.reason ?? "redeem_failed";
+      return errorResponse(messages[reason] ?? reason, 400);
+    }
     return jsonResponse({ ok: true, xpSpent: result.xpSpent });
+
   } catch (err) {
     if (err instanceof LiveDataRequiredError) return errorResponse(err.message, 503);
     throw err;

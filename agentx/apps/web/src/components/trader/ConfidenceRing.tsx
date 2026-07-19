@@ -25,8 +25,8 @@ export function ConfidenceRing({ value, size = 80 }: { value: number; size?: num
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-gold">{Math.round(value)}%</span>
-        <span className="text-[10px] text-muted-foreground">CONF</span>
+        <span className="font-display text-lg font-bold tabular-nums text-gold">{Math.round(value)}%</span>
+        <span className="font-mono text-[9px] tracking-wider text-muted-foreground">CONF</span>
       </div>
     </div>
   );

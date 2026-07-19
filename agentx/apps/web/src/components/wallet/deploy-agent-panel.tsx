@@ -56,6 +56,7 @@ export function DeployAgentPanel({ onDeployed }: DeployAgentPanelProps) {
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
         Deploy is free — one click, no on-chain transaction. Fund the treasury with devnet USDC to activate trading.
+        Platform identity uses MPL Core + ERC-8004 metadata; arena agents run off-chain until individually registered.
       </p>
 
       <div className="mb-3 grid grid-cols-2 gap-2">

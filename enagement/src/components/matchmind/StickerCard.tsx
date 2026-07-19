@@ -18,27 +18,41 @@ export function StickerCard({
 
   const inner = (
     <motion.div
-      initial={false}
+      initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.35 }}
       className={`group relative overflow-hidden rounded-2xl bg-black ring-2 ${style.ring} ${style.glow} ${sizeClass} ${
         locked ? "opacity-70" : ""
       }`}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-black/40" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/8 via-transparent to-black/50" />
       <img
         src={sticker.imageUrl}
         alt={sticker.title}
-        className={`h-full w-full object-cover ${locked ? "grayscale brightness-50" : ""}`}
+        className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.04] ${
+          locked ? "grayscale brightness-50" : ""
+        }`}
         loading="lazy"
       />
       {locked ? (
-        <div className="absolute inset-0 grid place-items-center bg-black/50">
-          <Lock className="size-6 text-muted-foreground" />
+        <div className="absolute inset-0 grid place-items-center bg-black/50 backdrop-blur-[1px]">
+          <div className="grid size-10 place-items-center rounded-full border border-white/15 bg-black/40">
+            <Lock className="size-5 text-muted-foreground" />
+          </div>
         </div>
       ) : null}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent p-2.5">
-        <p className={`font-mono text-[8px] uppercase tracking-[0.16em] ${style.text}`}>{sticker.rarity}</p>
-        <h4 className="mt-0.5 text-xs font-black italic uppercase leading-tight text-white line-clamp-2">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent p-2.5">
+        <div className="mb-1 flex items-center justify-between gap-1">
+          <span
+            className={`rounded-full px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] ${style.chip}`}
+          >
+            {sticker.rarity}
+          </span>
+          {sticker.kind === "moment" ? (
+            <span className="font-mono text-[8px] uppercase tracking-wider text-accent">Moment</span>
+          ) : null}
+        </div>
+        <h4 className="font-display text-xs font-bold italic uppercase leading-tight text-white line-clamp-2">
           {sticker.title}
         </h4>
         {sticker.serial ? (

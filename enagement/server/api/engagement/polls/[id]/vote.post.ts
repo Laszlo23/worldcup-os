@@ -28,7 +28,16 @@ export default defineHandler(async (event) => {
   try {
     const user = await upsertUser(wallet);
     const result = await voteOnPoll(user.id, pollId, choice);
-    if (!result.ok) return errorResponse(result.reason ?? "vote_failed", 400);
+    if (!result.ok) {
+      const messages: Record<string, string> = {
+        already_voted: "You already locked in a vote on this poll",
+        poll_closed: "This poll window has closed",
+        poll_resolved: "This poll already settled",
+        poll_not_found: "Poll not found",
+      };
+      const reason = result.reason ?? "vote_failed";
+      return errorResponse(messages[reason] ?? reason, 400);
+    }
     return jsonResponse({
       ok: true,
       choice,

@@ -13,25 +13,48 @@ export const Route = createFileRoute("/passport")({
 
 function PassportScreen() {
   const wallet = useAppStore((s) => s.wallet);
-  const { data, isPending } = usePassport(wallet.connected);
+  const { data, isPending, isError, refetch } = usePassport(wallet.connected);
   const { data: album } = useStickerAlbum(wallet.connected);
   const passport = data?.passport;
 
   if (!wallet.connected) {
     return (
       <AppShell title="Fan Passport" subtitle="Connect wallet">
-        <div className="px-4 py-16 text-center space-y-4">
-          <p className="text-sm text-muted-foreground">Sign in with Solana to load your fan passport.</p>
-          <ConnectWalletButton />
+        <div className="space-y-4 px-4 py-16 text-center">
+          <p className="text-sm text-muted-foreground">
+            Sign in with Solana to track XP, poll wins, claimed moments, and stadium check-ins.
+          </p>
+          <ConnectWalletButton size="default" />
+          <p className="text-xs text-muted-foreground">
+            Tip: vote on <Link to="/predict" className="text-accent">XP polls</Link> and claim{" "}
+            <Link to="/moments" className="text-accent">moments</Link> to level up.
+          </p>
         </div>
       </AppShell>
     );
   }
 
-  if (isPending || !passport) {
+  if (isPending) {
     return (
       <AppShell title="Fan Passport" subtitle="Loading…">
-        <p className="text-center py-16 text-muted-foreground">Loading passport…</p>
+        <p className="py-16 text-center text-muted-foreground">Loading passport…</p>
+      </AppShell>
+    );
+  }
+
+  if (isError || !passport) {
+    return (
+      <AppShell title="Fan Passport" subtitle="Error">
+        <div className="space-y-3 px-4 py-16 text-center">
+          <p className="text-sm text-muted-foreground">Could not load passport. Try again.</p>
+          <button
+            type="button"
+            className="text-xs font-semibold text-accent"
+            onClick={() => void refetch()}
+          >
+            Retry
+          </button>
+        </div>
       </AppShell>
     );
   }
@@ -68,10 +91,16 @@ function PassportScreen() {
       </section>
 
       <section className="mt-5 px-4 grid grid-cols-2 gap-2">
-        <StatBig label="Predictions Won" value={passport.predictionsWon} accent />
-        <StatBig label="Stickers" value={album?.totalOwned ?? passport.momentsClaimed} />
-        <StatBig label="Stadiums" value={passport.stadiumVerified} />
-        <StatBig label="Streak" value={passport.streak} />
+        <StatBig label="Polls won" value={passport.predictionsWon} accent />
+        <StatBig label="Moments" value={passport.momentsClaimed} />
+        <StatBig label="Stickers" value={album?.totalOwned ?? 0} />
+        <StatBig label="Stadium check-ins" value={passport.stadiumVerified} />
+      </section>
+
+      <section className="mt-4 flex flex-wrap gap-3 px-4 text-xs font-semibold">
+        <Link to="/predict" className="text-accent">Predict →</Link>
+        <Link to="/moments" className="text-accent">Album →</Link>
+        <Link to="/rewards" className="text-muted-foreground hover:text-accent">Rewards →</Link>
       </section>
 
       <section className="mt-6 px-4">

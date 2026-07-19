@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { ArrowRight, ShieldCheck, Zap, Radio, Trophy, Play, ListChecks, CheckCircle2, Activity } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Radio, Play, ListChecks, CheckCircle2, Activity, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConnectWalletButton } from "@/components/connect-wallet";
 import { LandingMobileNav } from "@/components/landing-mobile-nav";
@@ -8,13 +8,10 @@ import { DevnetBanner } from "@/components/site/devnet-banner";
 import { PartnerFooter } from "@/components/site/partner-footer";
 import { MatchCard } from "@/components/match-card";
 import { HeroBackground } from "@/components/landing/hero-background";
-import { HeroLiveEventFlow } from "@/components/landing/hero-live-event-flow";
 import { AnimatedCounter } from "@/components/landing/animated-counter";
 import { buildProtocolMetrics } from "@/components/landing/protocol-metrics";
 import { TxlineProofEngine } from "@/components/landing/txline-proof-engine";
-import { TxlineMoatPipeline } from "@/components/landing/txline-moat-pipeline";
 import { OraclePreview } from "@/components/landing/oracle-preview";
-import { OracleSettlementTimeline } from "@/components/landing/oracle-settlement-timeline";
 import { AiIntelligencePreview } from "@/components/landing/ai-intelligence-preview";
 import { ProofPreview } from "@/components/landing/proof-preview";
 import { PassportPreview } from "@/components/landing/passport-preview";
@@ -51,30 +48,45 @@ function Landing() {
   return (
     <div className="min-h-screen">
       <DevnetBanner />
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-background/70 border-b border-border/80 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-2 justify-between">
-          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 min-w-0 group">
-            <div className="h-9 w-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center glow-primary shrink-0 group-hover:border-primary/50 transition-colors">
-              <Trophy className="h-5 w-5 text-primary" />
-            </div>
+      <header className="sticky top-0 z-40 glass-strong border-b border-primary/15 pt-[env(safe-area-inset-top)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5 flex items-center gap-2 justify-between">
+          <Link to="/" className="flex items-center gap-2.5 sm:gap-3 min-w-0 group">
+            <img
+              src="/brand/logo.svg"
+              alt="World Cup OS"
+              width={36}
+              height={36}
+              className="brand-mark h-9 w-9 rounded-xl shrink-0 transition-transform group-hover:scale-105"
+            />
             <div className="flex flex-col leading-tight min-w-0">
-              <span className="font-display font-bold text-sm sm:text-base truncate tracking-tight">World Cup OS</span>
-              <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-mono hidden sm:block">
-                Trust Layer · Solana
+              <span className="font-display font-bold text-sm sm:text-base truncate tracking-tight">
+                World Cup OS
+              </span>
+              <span className="text-[9px] sm:text-[10px] text-primary/80 uppercase tracking-[0.22em] font-mono hidden sm:block">
+                WMOS · Trust Layer
               </span>
             </div>
           </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground font-medium">
-            <Link to="/oracle" className="hover:text-primary transition-colors">Oracle</Link>
-            <Link to="/replay" className="hover:text-foreground transition-colors">Proof Replay</Link>
+          <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground font-medium">
+            <Link to="/oracle" className="inline-flex items-center gap-1.5 hover:text-primary transition-colors">
+              <Radio className="h-3.5 w-3.5" />
+              Oracle
+            </Link>
+            <Link to="/replay" className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
+              <Play className="h-3.5 w-3.5" />
+              Proof Replay
+            </Link>
             <Link to="/proofs" className="hover:text-foreground transition-colors">Proofs</Link>
             <Link to="/tasks" className="hover:text-foreground transition-colors">Tasks</Link>
           </nav>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <LandingMobileNav />
             <div className="hidden sm:block">
-              <Button asChild variant="ghost" size="sm" className="font-mono text-xs uppercase tracking-wider">
-                <Link to="/dashboard">Dashboard</Link>
+              <Button asChild variant="ghost" size="sm" className="font-mono text-xs uppercase tracking-wider gap-1.5">
+                <Link to="/dashboard" className="inline-flex items-center gap-1.5">
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
               </Button>
             </div>
             <ConnectWalletButton size="sm" className="max-w-[9.5rem] sm:max-w-none" />
@@ -83,16 +95,24 @@ function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border/40">
+      <section className="relative overflow-hidden border-b border-border/40 min-h-[78vh] sm:min-h-[85vh] flex flex-col justify-center">
         <HeroBackground />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-10 sm:pb-14">
-          <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] gap-10 lg:gap-12 items-start">
-            <div className="min-w-0">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-16 sm:pt-24 pb-12 sm:pb-16">
+          <div className="max-w-4xl">
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="font-display text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[0.95] mb-4 sm:mb-5"
+          >
+            <span className="gradient-text">World Cup OS</span>
+          </motion.p>
+
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass neon-edge-sm font-mono text-[10px] sm:text-xs mb-6 sm:mb-8"
+            transition={{ delay: 0.06 }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass neon-edge-sm font-mono text-[10px] sm:text-xs mb-5 sm:mb-6"
           >
             <span className={`h-2 w-2 rounded-full ${txlineHealthy ? "bg-primary animate-live-dot" : "bg-muted-foreground"}`} />
             <span className={`uppercase tracking-[0.15em] ${txlineHealthy ? "text-primary" : "text-muted-foreground"}`}>
@@ -101,48 +121,27 @@ function Landing() {
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-            className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold tracking-tight max-w-4xl leading-[1.05]"
+            transition={{ delay: 0.1 }}
+            className="text-xl sm:text-3xl md:text-4xl font-display font-semibold tracking-tight max-w-3xl leading-snug text-foreground/95"
           >
-            The Trust Layer For{" "}
-            <span className="gradient-text">Global Sports</span>
+            The trust layer for global sports
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.16 }}
-            className="mt-5 sm:mt-6 text-base sm:text-lg text-muted-foreground max-w-2xl leading-relaxed"
+            className="mt-4 sm:mt-5 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed"
           >
-            Every match event becomes a cryptographically verified asset. Real-time sports intelligence powered by TxLINE. Settled automatically on Solana.
+            Live match events, verified on-chain. TxLINE intelligence. Automatic Solana settlement.
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.24 }}
-            className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-3xl"
-          >
-            {protocolMetrics.map((s, i) => (
-              <div key={s.label} className="terminal-panel neon-edge-sm px-3 sm:px-4 py-3 sm:py-4">
-                <div className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">{s.label}</div>
-                <div className="text-xl sm:text-2xl font-display font-bold tabular-nums text-foreground">
-                  {s.animate && s.numericValue ? (
-                    <AnimatedCounter value={s.numericValue} duration={1800 + i * 200} />
-                  ) : (
-                    s.value
-                  )}
-                </div>
-              </div>
-            ))}
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.32 }}
             className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-md sm:max-w-none"
           >
             <Button asChild size="lg" className="w-full sm:w-auto bg-gradient-primary text-primary-foreground border-0 gap-2 min-h-[48px] font-mono text-xs uppercase tracking-wider glow-primary">
@@ -157,17 +156,38 @@ function Landing() {
               </Link>
             </Button>
           </motion.div>
-            </div>
+          </div>
+        </div>
+      </section>
 
-            <HeroLiveEventFlow />
+      <section className="border-b border-border/40 bg-background/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            {protocolMetrics.map((s, i) => (
+              <motion.div
+                key={s.label}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="terminal-panel neon-edge-sm px-3 sm:px-4 py-3 sm:py-4"
+              >
+                <div className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">{s.label}</div>
+                <div className="text-xl sm:text-2xl font-display font-bold tabular-nums text-foreground">
+                  {s.animate && s.numericValue ? (
+                    <AnimatedCounter value={s.numericValue} duration={1800 + i * 200} />
+                  ) : (
+                    s.value
+                  )}
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
       <TxlineProofEngine />
-      <TxlineMoatPipeline />
       <OraclePreview />
-      <OracleSettlementTimeline />
       <AiIntelligencePreview />
 
       {/* Live matches */}
@@ -183,8 +203,8 @@ function Landing() {
           <div className="relative">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-destructive mb-2">Live intelligence</p>
-              <h2 className="text-2xl sm:text-3xl font-display font-bold">Match Feed</h2>
+              <p className="section-label text-primary mb-2">Live intelligence</p>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight">Match Feed</h2>
             </div>
             <Link to="/matches" className="font-mono text-xs text-primary hover:underline uppercase tracking-wider">
               View all matches →
@@ -206,8 +226,8 @@ function Landing() {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-16 border-t border-border/40">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-accent mb-2">Financial instruments</p>
-              <h2 className="text-2xl sm:text-3xl font-display font-bold">Prediction Markets</h2>
+              <p className="section-label text-accent mb-2">Financial instruments</p>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight">Prediction Markets</h2>
               <p className="text-muted-foreground text-sm mt-2">Oracle-settled. Non-custodial. Transparent liquidity.</p>
             </div>
             <Link to="/markets" className="font-mono text-xs text-primary hover:underline uppercase tracking-wider">
@@ -272,8 +292,8 @@ function Landing() {
       {/* Demo links */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-16 border-t border-border/40">
         <div className="text-center mb-10">
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">Protocol demo</p>
-          <h2 className="text-2xl sm:text-3xl font-display font-bold">Explore the Stack</h2>
+          <p className="section-label mb-3">Protocol demo</p>
+          <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight">Explore the Stack</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
@@ -288,7 +308,7 @@ function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
-                className="glass neon-edge-sm p-6 rounded-xl h-full hover:border-primary/40 transition-all group"
+                className="glass-strong neon-edge-sm p-6 rounded-2xl h-full hover:border-primary/45 transition-all group hover:-translate-y-0.5"
               >
                 <item.icon className="h-7 w-7 text-primary mb-3 group-hover:scale-110 transition-transform" />
                 <h3 className="font-display font-semibold mb-1">{item.title}</h3>

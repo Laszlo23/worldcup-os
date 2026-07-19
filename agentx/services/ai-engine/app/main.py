@@ -1,6 +1,7 @@
 import asyncio
 import json
 from contextlib import asynccontextmanager
+from datetime import date, datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Request, Response
@@ -12,7 +13,7 @@ from app.config import settings
 from app.ingestion.state import ingestion_state, touch_event
 from app.ingestion.stream_runner import run_scores_stream, run_odds_stream
 from app.ingestion.poll_fallback import run_poll_fallback
-from app.ingestion.worker import sync_fixtures, get_demo_tick, upsert_from_payload, purge_demo_data
+from app.ingestion.worker import sync_fixtures, get_demo_tick, upsert_from_payload, purge_demo_data, sync_score_snapshots
 from app.signals.engine import run_signal_cycle, _serialize_signal
 from app.agents.strategies import process_signal_for_agents, get_agents_leaderboard
 from app.agents.settlement import resolve_finished_matches
@@ -30,7 +31,7 @@ from app.chat.analyst import chat_response, chat_stream
 from app.ws.hub import hub
 
 DEMO_TICK_INTERVAL = 10
-SIGNAL_INTERVAL = 60
+SIGNAL_INTERVAL = 20
 
 
 def _parse_json(val: Any, default: Any) -> Any:
@@ -41,11 +42,27 @@ def _parse_json(val: Any, default: Any) -> Any:
     return val
 
 
+def _serialize_dt(val: Any) -> str | None:
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        dt = val.astimezone(timezone.utc) if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
+    if isinstance(val, date):
+        return val.isoformat()
+    if isinstance(val, str):
+        return val
+    if hasattr(val, "isoformat"):
+        return val.isoformat()
+    return str(val)
+
+
 async def _broadcast(channel: str, payload: dict) -> None:
     await hub.broadcast(channel, payload)
 
 
 def _serialize_match(m: dict) -> dict:
+    kickoff = m.get("kickoff_at") or m.get("kickoffAt")
     return {
         "id": m["id"],
         "externalId": m.get("external_id", m.get("externalId", "")),
@@ -55,7 +72,7 @@ def _serialize_match(m: dict) -> dict:
         "scoreAway": m.get("score_away", m.get("scoreAway", 0)),
         "status": m["status"],
         "minute": m.get("minute", 0),
-        "kickoffAt": m.get("kickoff_at") or m.get("kickoffAt"),
+        "kickoffAt": _serialize_dt(kickoff),
         "stadium": m.get("stadium"),
         "stage": m.get("stage"),
         "stats": _parse_json(m.get("stats"), {}),
@@ -87,6 +104,7 @@ async def signal_loop() -> None:
         try:
             if not settings.demo_mode:
                 await sync_fixtures()
+                await sync_score_snapshots()
             resolved = await resolve_finished_matches()
             if resolved:
                 await _broadcast("portfolio", {"type": "agents_settled", "count": resolved})
@@ -125,8 +143,16 @@ async def lifespan(app: FastAPI):
                 if removed:
                     print(f"[startup] purged {removed} demo match(es)")
             await sync_fixtures()
+            if not settings.demo_mode:
+                await sync_score_snapshots()
             await db.run_agent_migrations()
+            await db.run_supplemental_migrations()
             await db.ensure_agents()
+            if not settings.demo_mode:
+                try:
+                    await run_signal_cycle(broadcast=_broadcast)
+                except Exception as e:
+                    print(f"[startup] initial signal cycle: {e}")
     except Exception as e:
         print(f"[startup] fixture sync warning: {e}")
     if settings.demo_mode:
@@ -184,13 +210,29 @@ async def health():
     }
 
 
+def _match_feed_rank(m: dict) -> tuple[int, int, float]:
+    """In-play matches first, then by minute desc, then nearest kickoff."""
+    status = str(m.get("status", "scheduled")).lower()
+    status_order = {"live": 0, "halftime": 1, "scheduled": 2, "finished": 3, "settled": 4}.get(status, 5)
+    minute = int(m.get("minute") or 0)
+    kickoff = m.get("kickoff_at")
+    kickoff_ts = kickoff.timestamp() if hasattr(kickoff, "timestamp") else 0
+    return (status_order, -minute, kickoff_ts)
+
+
 @app.get("/api/live-matches")
 async def live_matches(status: str | None = None):
     if status:
         rows = await db.list_matches(status)
     else:
         rows = await db.list_matches()
-    return {"matches": [_serialize_match(m) for m in rows]}
+        rows = sorted(rows, key=_match_feed_rank)
+    serialized = [_serialize_match(m) for m in rows]
+    featured = next(
+        (m for m in serialized if m.get("status") in ("live", "halftime")),
+        serialized[0] if serialized else None,
+    )
+    return {"matches": serialized, "featured": featured}
 
 
 @app.get("/api/matches/{match_id}")

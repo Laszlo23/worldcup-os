@@ -15,7 +15,7 @@ export function ProofPreview() {
             From Goal To Certificate
           </h2>
           <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-            Goal → proof → certificate → prediction settlement → fan reputation. Every settled match produces a verifiable digital asset with Merkle root, TxLINE signature, and Solana transaction hash.
+            Every settled match produces a verifiable digital asset — Merkle root, TxLINE signature, and Solana transaction hash. Browse live certificates or trace your own predictions.
           </p>
           <SoccerImage
             src={SOCCER_MOMENTS.save.src}

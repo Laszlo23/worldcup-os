@@ -22,7 +22,7 @@ export const siteMetadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: "/icon.svg",
-    apple: "/icon.svg",
+    apple: "/brand/logo.png",
   },
   openGraph: {
     title: "TxLINE AI Trader",

@@ -59,12 +59,21 @@ def _historical_pattern_score(match: dict) -> tuple[float, list[dict]]:
     minute = int(match.get("minute", 0))
     score_home = int(match.get("score_home", 0))
     score_away = int(match.get("score_away", 0))
-    if minute >= 60 and score_home > score_away:
-        reasons.append({"type": "pattern", "label": "Historical model: leading team scores next 62% in similar states", "impact": "positive"})
+    leader = "home" if score_home > score_away else "away" if score_away > score_home else "draw"
+    if minute >= 60 and leader != "draw":
+        side = "leading" if leader == "home" else "trailing"
+        reasons.append({
+            "type": "pattern",
+            "label": f"Historical model: {side} team scores next 62% in similar states",
+            "impact": "positive",
+        })
         return 0.72, reasons
     if minute >= 45:
         reasons.append({"type": "pattern", "label": "Similar match situations favor momentum leader", "impact": "positive"})
-        return 0.55, reasons
+        return 0.58, reasons
+    if minute >= 15:
+        reasons.append({"type": "pattern", "label": "In-play window open — momentum building", "impact": "positive"})
+        return 0.48, reasons
     return 0.4, reasons
 
 
@@ -83,11 +92,19 @@ async def analyze_match(match: dict) -> dict | None:
     pos_score, pos_reasons = _possession_score(stats)
     hist_score, hist_reasons = _historical_pattern_score(match)
 
+    in_play_boost = 0.0
+    if match.get("status") == "halftime":
+        in_play_boost = 0.18
+        hist_reasons.append({"type": "state", "label": "Halftime — lineups reset, second-half edge forming", "impact": "positive"})
+    elif int(match.get("minute", 0)) >= 20:
+        in_play_boost = 0.12
+        hist_reasons.append({"type": "state", "label": f"In-play at {int(match.get('minute', 0))}' — live TxLINE feed active", "impact": "positive"})
+
     confidence = (
-        om_score * 0.35 + ap_score * 0.25 + pos_score * 0.20 + hist_score * 0.20
+        om_score * 0.35 + ap_score * 0.25 + pos_score * 0.20 + hist_score * 0.20 + in_play_boost
     ) * 100
 
-    if confidence < 55:
+    if confidence < 42:
         return None
 
     all_reasons = om_reasons + ap_reasons + pos_reasons + hist_reasons
@@ -95,8 +112,18 @@ async def analyze_match(match: dict) -> dict | None:
         all_reasons = [{"type": "momentum", "label": f"Momentum index at {momentum:.0f}%", "impact": "positive"}]
 
     home_name = home_team.get("name", "Home")
-    headline = f"{home_name} likely to score next"
-    prediction = f"{home_name} next goal within 15 minutes"
+    away_name = away_team.get("name", "Away")
+    score_home = int(match.get("score_home", 0))
+    score_away = int(match.get("score_away", 0))
+    if score_away > score_home:
+        headline = f"{away_name} likely to score next"
+        prediction = f"{away_name} next goal within 15 minutes"
+    elif score_home > score_away:
+        headline = f"{home_name} extends lead"
+        prediction = f"{home_name} next goal within 15 minutes"
+    else:
+        headline = f"{home_name} likely to score next"
+        prediction = f"{home_name} next goal within 15 minutes"
     impact = "high" if confidence >= 75 else "medium"
 
     odds = _parse_json(match.get("odds"), {})
@@ -124,8 +151,13 @@ async def analyze_match(match: dict) -> dict | None:
 
 async def run_signal_cycle(broadcast=None) -> list[dict]:
     matches = await db.list_matches("live")
+    halftime = await db.list_matches("halftime")
+    seen: set[str] = set()
     created = []
-    for match in matches:
+    for match in [*matches, *halftime]:
+        if match["id"] in seen:
+            continue
+        seen.add(match["id"])
         signal_data = await analyze_match(match)
         if not signal_data:
             continue

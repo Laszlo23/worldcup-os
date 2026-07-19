@@ -84,14 +84,20 @@ When an AgentX agent decision wins after match settlement:
 - `agent_win` → `POST /api/superfan/internal/award` on World Cup OS (50 pts, idempotent per decision)
 - `agent_deploy` → 100 pts on wallet deploy (existing)
 
-## 8004 Trustless Agent Registry
+## Agent identity — MPL Core + ERC-8004
 
-On-chain agent identity and reputation via [`8004-solana`](https://github.com/QuantuLabs/8004-solana-ts).
+Platform agent on-chain identity uses **MPL Core** assets with **ERC-8004 `#registration-v1`** metadata via [`8004-solana`](https://github.com/QuantuLabs/8004-solana-ts). This is the honest Solana-standard positioning: Metaplex Core NFT + EIP-8004 registration JSON (not the separate Metaplex Agent Registry program).
 
 ```
-AGENT_8004_ASSET=...              # agent NFT pubkey from npm run trust8004:register
+AGENT_8004_ASSET=...              # MPL Core asset pubkey from npm run trust8004:register
 # Feedback signer: SOLANA_DEPLOYER_SECRET (default — no separate secret needed)
 ```
+
+Registration metadata includes `registrations`, `supportedTrust`, MCP/A2A services, and wallet endpoint per ERC-8004 best practices.
+
+`GET /api/trust8004/registration` — live ERC-8004 JSON for the configured platform agent.
+
+AgentX user-deployed agents are off-chain (DB + treasury) until individually registered.
 
 ### Commands
 

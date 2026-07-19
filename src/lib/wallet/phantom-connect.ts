@@ -67,7 +67,10 @@ export async function connectPhantomExtension(): Promise<string> {
 
 export function phantomSignMessage(provider: PhantomInjected) {
   return async (message: Uint8Array): Promise<Uint8Array> => {
-    const { signature } = await provider.signMessage(message);
-    return signature;
+    const result = await provider.signMessage(message);
+    if (result instanceof Uint8Array) return result;
+    const signature = (result as { signature?: Uint8Array })?.signature;
+    if (signature instanceof Uint8Array) return signature;
+    throw new Error("Phantom did not return a signature — approve the login message and retry");
   };
 }

@@ -7,19 +7,20 @@ export function HeroBackground() {
         muted
         playsInline
         preload="auto"
-        className="absolute inset-0 h-full w-full object-cover object-center opacity-40"
+        className="absolute inset-0 h-full w-full scale-105 object-cover object-center opacity-[0.45]"
         aria-hidden
       >
         <source src="/bgvideofix.mp4" type="video/mp4" />
       </video>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,oklch(0.55_0.22_300/0.18),transparent_55%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_20%,oklch(0.72_0.19_155/0.12),transparent_50%)]" />
-      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/92 to-background/55" />
-      <div className="absolute inset-0 pitch-grid opacity-[0.35]" />
-      <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background/80 to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,oklch(0.55_0.22_300/0.22),transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_85%_15%,oklch(0.78_0.19_155/0.16),transparent_50%)]" />
+      <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/50" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background" />
+      <div className="absolute inset-0 pitch-grid opacity-[0.4]" />
+      <div className="absolute bottom-0 left-0 right-0 h-56 bg-gradient-to-t from-background via-background/85 to-transparent" />
       <div className="data-stream-lines" />
       <div className="oracle-particles">
-        {Array.from({ length: 24 }).map((_, i) => (
+        {Array.from({ length: 28 }).map((_, i) => (
           <span
             key={i}
             className="oracle-particle"
@@ -31,15 +32,15 @@ export function HeroBackground() {
           />
         ))}
       </div>
-      <svg className="absolute inset-0 w-full h-full opacity-20" preserveAspectRatio="none">
+      <svg className="absolute inset-0 h-full w-full opacity-25" preserveAspectRatio="none">
         <defs>
           <linearGradient id="net-line" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="oklch(0.72 0.19 155)" stopOpacity="0" />
-            <stop offset="50%" stopColor="oklch(0.62 0.22 300)" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="oklch(0.72 0.19 155)" stopOpacity="0" />
+            <stop offset="0%" stopColor="oklch(0.78 0.19 155)" stopOpacity="0" />
+            <stop offset="50%" stopColor="oklch(0.62 0.22 300)" stopOpacity="0.65" />
+            <stop offset="100%" stopColor="oklch(0.78 0.19 155)" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {[20, 40, 60, 80].map((y) => (
+        {[18, 38, 58, 78].map((y) => (
           <line
             key={y}
             x1="0"

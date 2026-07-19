@@ -9,6 +9,6 @@ export function Badge({ className, variant = "default", ...props }: React.HTMLAt
     outline: "border border-border text-muted-foreground",
   };
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", variants[variant], className)} {...props} />
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide", variants[variant], className)} {...props} />
   );
 }

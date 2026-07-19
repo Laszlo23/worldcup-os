@@ -113,11 +113,36 @@ export async function getPassport(userId: string): Promise<EngagementPassport> {
   };
 }
 
-export async function listPolls(matchExternalId?: string): Promise<EngagementPollRow[]> {
+export type EngagementPollListRow = EngagementPollRow & {
+  match_external_id: string;
+  yes_votes: number;
+  no_votes: number;
+  user_choice: "yes" | "no" | null;
+};
+
+export async function listPolls(
+  matchExternalId?: string,
+  userId?: string,
+): Promise<EngagementPollListRow[]> {
   requireDatabase();
-  const rows = await query<EngagementPollRow & { match_external_id: string }>(
+  const rows = await query<EngagementPollListRow>(
     `
-      select p.*, m.external_id as match_external_id
+      select
+        p.*,
+        m.external_id as match_external_id,
+        coalesce((
+          select count(*)::int from engagement_poll_votes v
+          where v.poll_id = p.id and v.choice = 'yes'
+        ), 0) as yes_votes,
+        coalesce((
+          select count(*)::int from engagement_poll_votes v
+          where v.poll_id = p.id and v.choice = 'no'
+        ), 0) as no_votes,
+        (
+          select v.choice from engagement_poll_votes v
+          where v.poll_id = p.id and v.user_id = $2::uuid
+          limit 1
+        ) as user_choice
       from engagement_polls p
       join matches m on m.id = p.match_id
       where ($1::text is null or m.external_id = $1)
@@ -125,7 +150,7 @@ export async function listPolls(matchExternalId?: string): Promise<EngagementPol
       order by p.closes_at desc
       limit 20
     `,
-    [matchExternalId ?? null],
+    [matchExternalId ?? null, userId ?? null],
   );
   return rows;
 }
@@ -286,13 +311,29 @@ export async function resolvePoll(pollId: string, outcome: "yes" | "no" | "void"
   }
 }
 
-export async function listMoments(matchExternalId?: string, userId?: string): Promise<EngagementMomentRow[]> {
+export type EngagementMomentListRow = EngagementMomentRow & {
+  match_label: string;
+};
+
+export async function listMoments(
+  matchExternalId?: string,
+  userId?: string,
+): Promise<EngagementMomentListRow[]> {
   requireDatabase();
-  const rows = await query<EngagementMomentRow & { match_external_id: string; claimed: boolean }>(
+  const rows = await query<EngagementMomentListRow>(
     `
       select
         em.*,
         m.external_id as match_external_id,
+        trim(both ' ' from concat_ws(
+          ' · ',
+          nullif(concat_ws(
+            ' vs ',
+            nullif(m.home_team->>'name', ''),
+            nullif(m.away_team->>'name', '')
+          ), ''),
+          nullif(m.stage, '')
+        )) as match_label,
         case
           when $2::uuid is null then false
           else exists (
@@ -311,6 +352,34 @@ export async function listMoments(matchExternalId?: string, userId?: string): Pr
   return rows;
 }
 
+const MOMENT_ART_POOL = [
+  "/moment-topbin-curl.jpg",
+  "/moment-volley-night.jpg",
+  "/moment-save-dive.jpg",
+  "/moment-header.jpg",
+  "/moment-celebration.jpg",
+  "/moment-thunderbolt.jpg",
+] as const;
+
+function pickMomentArt(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return MOMENT_ART_POOL[hash % MOMENT_ART_POOL.length]!;
+}
+
+/** Rarity from minute band + event seed — late winners skew rarer. */
+function pickMomentRarity(minute: number | undefined, seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 33 + seed.charCodeAt(i)) >>> 0;
+  const roll = hash % 100;
+  const m = minute ?? 0;
+  if (m >= 85 && roll < 18) return "Legendary";
+  if (m >= 70 && roll < 28) return "Epic";
+  if (roll < 45) return "Rare";
+  if (roll < 75) return "Epic";
+  return "Rare";
+}
+
 export async function createMomentFromGoal(params: {
   matchId: string;
   eventKey: string;
@@ -318,6 +387,7 @@ export async function createMomentFromGoal(params: {
   player?: string;
   minute?: number;
   imageUrl?: string;
+  rarity?: string;
 }): Promise<void> {
   requireDatabase();
   const externalId = `moment_${params.eventKey.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 48)}`;
@@ -327,7 +397,11 @@ export async function createMomentFromGoal(params: {
   );
   if (existing) return;
 
-  const serial = `#${Math.floor(1000 + Math.random() * 9000)}`;
+  const serialNum = 100 + (Math.abs(externalId.split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % 8900);
+  const serial = `#${String(serialNum).padStart(4, "0")} / 9999`;
+  const rarity = params.rarity ?? pickMomentRarity(params.minute, params.eventKey);
+  const imageUrl = params.imageUrl ?? pickMomentArt(params.eventKey);
+
   await query(
     `
       insert into engagement_moments (
@@ -342,8 +416,8 @@ export async function createMomentFromGoal(params: {
       params.title,
       params.player ?? null,
       params.minute ?? null,
-      "Rare",
-      params.imageUrl ?? "/moment-volley.jpg",
+      rarity,
+      imageUrl,
       serial,
     ],
   );
@@ -395,15 +469,29 @@ export async function recordStadiumProof(params: {
   userId: string;
   matchId: string;
   txSignature?: string;
-}): Promise<void> {
+}): Promise<{ firstTime: boolean }> {
   requireDatabase();
+  const existing = await maybeOne<{ id: string }>(
+    "select id from engagement_stadium_proofs where user_id = $1 and match_id = $2",
+    [params.userId, params.matchId],
+  );
+
+  if (existing) {
+    await query(
+      `
+        update engagement_stadium_proofs
+        set tx_signature = coalesce($3, tx_signature), verified_at = now()
+        where user_id = $1 and match_id = $2
+      `,
+      [params.userId, params.matchId, params.txSignature ?? null],
+    );
+    return { firstTime: false };
+  }
+
   await query(
     `
       insert into engagement_stadium_proofs (user_id, match_id, tx_signature)
       values ($1, $2, $3)
-      on conflict (user_id, match_id)
-      do update set tx_signature = coalesce(excluded.tx_signature, engagement_stadium_proofs.tx_signature),
-                    verified_at = now()
     `,
     [params.userId, params.matchId, params.txSignature ?? null],
   );
@@ -414,6 +502,7 @@ export async function recordStadiumProof(params: {
   );
   await mirrorPassportXp(params.userId, 100, "stadium-verify");
   await awardStickerIfEligible(params.userId, "stadium_verify", params.matchId);
+  return { firstTime: true };
 }
 
 export async function getStadiumStatus(userId: string, matchId: string): Promise<{ verified: boolean; txSignature?: string }> {
@@ -429,6 +518,12 @@ export async function redeemReward(userId: string, rewardExternalId: string): Pr
   requireDatabase();
   const reward = REWARD_CATALOG.find((r) => r.id === rewardExternalId);
   if (!reward) return { ok: false, reason: "reward_not_found" };
+
+  const already = await maybeOne<{ id: string }>(
+    "select id from engagement_reward_redemptions where user_id = $1 and reward_external_id = $2 limit 1",
+    [userId, rewardExternalId],
+  );
+  if (already) return { ok: false, reason: "already_redeemed" };
 
   const passport = await getPassport(userId);
   if (passport.xp < reward.xp) return { ok: false, reason: "insufficient_xp" };
@@ -805,7 +900,7 @@ export async function getStickerAlbum(userId: string): Promise<{
     title: m.title,
     description: m.player ? `${m.player} · ${m.minute ?? 0}'` : "Goal drop",
     rarity: m.rarity,
-    imageUrl: m.image_url ?? "/moment-volley.jpg",
+    imageUrl: m.image_url ?? "/moment-volley-night.jpg",
     owned: m.claimed,
     earnedAt: m.earned_at ?? undefined,
     kind: "moment",

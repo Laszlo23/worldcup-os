@@ -11,6 +11,7 @@ cd "$ROOT"
 NODE_ENV=production npm run build
 
 echo "[deploy] Syncing source + .output to server..."
+# Keep previously hashed /assets so cached tabs can still load connect-wallet after deploy.
 rsync -az --delete \
   --exclude node_modules \
   --exclude .git \
@@ -20,11 +21,19 @@ rsync -az --delete \
   --exclude enagement \
   --exclude .publish \
   --exclude '**/.next' \
+  --exclude '.output/public/assets/' \
   -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new" \
   "$ROOT/" "$HOST:$REMOTE_DIR/"
 
+if [ -d "$ROOT/.output/public/assets" ]; then
+  echo "[deploy] Merging hashed assets (no delete)..."
+  rsync -az \
+    -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new" \
+    "$ROOT/.output/public/assets/" "$HOST:$REMOTE_DIR/.output/public/assets/"
+fi
+
 echo "[deploy] Installing runtime deps + migrating DB + restarting PM2..."
-ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_DIR && set -a && [ -f ./.env ] && . ./.env; set +a && npm ci --omit=dev && npm run db:migrate && pm2 startOrRestart ecosystem.config.cjs && pm2 save && pm2 status worldcup-os worldcup-worker"
+ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_DIR && chmod 755 . .output .output/public .output/public/assets 2>/dev/null || true; chmod 600 .env 2>/dev/null || true; set -a && [ -f ./.env ] && . ./.env; set +a && npm ci --omit=dev && npm run db:migrate && pm2 startOrRestart ecosystem.config.cjs && pm2 save && pm2 status worldcup-os worldcup-worker"
 
 ssh -i "$SSH_KEY" "$HOST" "cd $REMOTE_DIR && node scripts/verify-worker-health.mjs || true"
 

@@ -1,6 +1,3 @@
-import momentVolley from "@/assets/moment-volley.jpg";
-import momentSave from "@/assets/moment-save.jpg";
-import momentTopbin from "@/assets/moment-topbin.jpg";
 import rewardJersey from "@/assets/reward-jersey.jpg";
 import rewardVip from "@/assets/reward-vip.jpg";
 import rewardBoots from "@/assets/reward-boots.jpg";
@@ -157,7 +154,7 @@ export const moments: Moment[] = [
     match: "MAD vs MCI · UCL SF",
     rarity: "Legendary",
     serial: "#082 / 100",
-    image: momentVolley,
+    image: "/moment-volley-night.jpg",
     collectedAt: "Just now",
   },
   {
@@ -168,7 +165,7 @@ export const moments: Moment[] = [
     match: "MAD vs MCI · UCL SF",
     rarity: "Epic",
     serial: "#310 / 500",
-    image: momentSave,
+    image: "/moment-save-dive.jpg",
     collectedAt: "22 min ago",
   },
   {
@@ -179,7 +176,7 @@ export const moments: Moment[] = [
     match: "MAD vs MCI · UCL SF",
     rarity: "Rare",
     serial: "#1204 / 2500",
-    image: momentTopbin,
+    image: "/moment-topbin-curl.jpg",
     collectedAt: "1h ago",
   },
 ];

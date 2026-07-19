@@ -46,7 +46,7 @@ export const COMMUNITY_TASKS: CommunityTask[] = [
     timeEstimate: "5 min",
     ctaLabel: "Open Replay",
     ctaUrl: "/replay",
-    imageSrc: "/moment-topbin.jpg",
+    imageSrc: "/moment-topbin-curl.jpg",
     imageAlt: "Ball curls into the top corner",
   },
   {
@@ -58,7 +58,7 @@ export const COMMUNITY_TASKS: CommunityTask[] = [
     timeEstimate: "3 min",
     ctaLabel: "Browse Markets",
     ctaUrl: "/markets",
-    imageSrc: "/moment-volley.jpg",
+    imageSrc: "/moment-volley-night.jpg",
     imageAlt: "Player volleys the ball under stadium lights",
   },
   {
@@ -70,7 +70,7 @@ export const COMMUNITY_TASKS: CommunityTask[] = [
     timeEstimate: "2 min",
     ctaLabel: "View Proofs",
     ctaUrl: "/proofs",
-    imageSrc: "/moment-save.jpg",
+    imageSrc: "/moment-save-dive.jpg",
     imageAlt: "Goalkeeper makes a decisive save",
   },
   {

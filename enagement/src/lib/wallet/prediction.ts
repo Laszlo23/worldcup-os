@@ -9,7 +9,7 @@ export async function placePredictionOnChain(params: {
   walletAddress: string;
   signTransaction: (tx: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>;
   sendTransaction?: (tx: Transaction | VersionedTransaction, connection: Connection) => Promise<string>;
-}): Promise<{ prediction: import("../mock/types").Prediction; txSignature: string }> {
+}): Promise<{ prediction: import("../types").Prediction; txSignature: string }> {
   const built = await apiFetch<{ transaction: string; escrowPda: string }>("/api/predictions/build-tx", {
     method: "POST",
     body: JSON.stringify({

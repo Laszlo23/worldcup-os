@@ -8,8 +8,14 @@ export async function authenticateWallet(
   const nonceRes = await apiFetch<{ nonce: string; message: string }>(
     `/api/auth/nonce?pubkey=${encodeURIComponent(pubkey)}`,
   );
+  if (!nonceRes.message?.includes(pubkey)) {
+    throw new Error("Auth challenge mismatch — refresh and try again");
+  }
   const messageBytes = new TextEncoder().encode(nonceRes.message);
   const signatureBytes = await signMessage(messageBytes);
+  if (!(signatureBytes instanceof Uint8Array) || signatureBytes.length === 0) {
+    throw new Error("Wallet did not return a signature — approve the login message and retry");
+  }
   const signature = bs58.encode(signatureBytes);
 
   const res = await apiFetch<{ balance: number }>("/api/auth/verify", {

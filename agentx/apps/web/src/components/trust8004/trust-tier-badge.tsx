@@ -55,9 +55,9 @@ export function Trust8004Badge({ asset = DEFAULT_ASSET }: { asset?: string }) {
   const style = TIER_STYLES[tier] ?? TIER_STYLES.Unrated;
 
   return (
-    <Badge variant="outline" className={`text-[10px] gap-1 ${style}`} title={`8004 Trust · ${data.totalFeedbacks} feedback(s)`}>
+    <Badge variant="outline" className={`text-[10px] gap-1 ${style}`} title={`MPL Core · ERC-8004 · ${data.totalFeedbacks} feedback(s)`}>
       <Shield className="h-3 w-3" />
-      8004 {tier}
+      ERC-8004 {tier}
       {data.averageScore != null ? ` · ${data.averageScore.toFixed(0)}` : ""}
     </Badge>
   );
@@ -78,9 +78,9 @@ export function Trust8004ArenaCard() {
     <div className="mb-4 rounded-xl border border-cyan-500/25 bg-cyan-500/5 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">8004 Trustless Registry</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">MPL Core · ERC-8004</p>
           <p className="text-sm text-muted-foreground">
-            On-chain agent identity · {data.trustTierLabel} tier
+            Platform agent identity on Solana — {data.trustTierLabel} tier
             {data.averageScore != null ? ` · ${data.averageScore.toFixed(1)} avg score` : ""}
           </p>
         </div>

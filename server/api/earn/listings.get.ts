@@ -2,6 +2,10 @@ import { defineHandler } from "nitro";
 import { earnClient } from "@/server/services/earn/client";
 
 export default defineHandler(async (event) => {
+  if (event.method === "HEAD") {
+    return new Response(null, { status: 200 });
+  }
+
   if (!earnClient.hasCredentials()) {
     return { listings: [], error: "SUPERTEAM_EARN_API_KEY not configured" };
   }

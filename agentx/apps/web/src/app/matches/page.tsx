@@ -35,8 +35,13 @@ export default function MatchesPage() {
   }, [matches]);
 
   return (
-    <AppShell>
-      <h1 className="mb-4 text-xl font-bold">Matches</h1>
+    <AppShell backdropVariant="stadium" backdropIntensity="hero">
+      <div className="mb-5 space-y-1">
+        <p className="section-label text-gold/80">TxLINE Feed</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight">
+          <span className="gold-text">Matches</span>
+        </h1>
+      </div>
       <Tabs defaultValue="live">
         <TabsList className="w-full">
           <TabsTrigger value="live" className="flex-1">

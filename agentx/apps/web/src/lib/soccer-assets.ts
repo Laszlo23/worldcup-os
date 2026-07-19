@@ -37,6 +37,26 @@ export const SOCCER_BACKGROUNDS = {
     src: `${SOCCER_BASE}/soccer-players-heading.webp`,
     alt: "Soccer players heading the ball",
   },
+  cornerKick: {
+    src: `${SOCCER_BASE}/football-player-taking-a-corner-kick-while-playing-at-the-stadium.webp`,
+    alt: "Corner kick at the stadium",
+  },
+  closeUp: {
+    src: `${SOCCER_BASE}/close-up-of-a-football-action-scene-with-competing-soccer-players-at-the-stadium-photo.webp`,
+    alt: "Close-up football action",
+  },
+  powerfulKick: {
+    src: `${SOCCER_BASE}/powerful-kick-of-a-soccer-player-with-fiery-ball-photo.webp`,
+    alt: "Powerful soccer kick",
+  },
+  portugalUruguay: {
+    src: `${SOCCER_BASE}/221128155448-01-portugal-uruguay-world-cup-1128.webp`,
+    alt: "Portugal vs Uruguay World Cup match",
+  },
+  englandWales: {
+    src: `${SOCCER_BASE}/221203174011-05-england-wales-world-cup-1129.webp`,
+    alt: "England vs Wales World Cup match",
+  },
 } as const;
 
 export type SoccerBackdropVariant = keyof typeof SOCCER_BACKGROUNDS;

@@ -6,17 +6,29 @@
   "services": [
     {
       "name": "MCP",
-      "endpoint": "https://agentx.buildingcultureid.space/api/health"
+      "endpoint": "https://agentx.buildingcultureid.space/api/health",
+      "version": "2025-06-18"
     },
     {
       "name": "A2A",
-      "endpoint": "https://wmos.buildingcultureid.space/api/earn/listings"
+      "endpoint": "https://wmos.buildingcultureid.space/api/earn/listings",
+      "version": "0.3.0"
     },
     {
       "name": "wallet",
       "endpoint": "6XitbmLNPGzsvGo6aNTbMG3uvwqdbmssy8g4zhbJrUTr"
     }
   ],
+  "supportedTrust": [
+    "reputation",
+    "crypto-economic"
+  ],
   "active": true,
-  "x402Support": false
+  "x402Support": false,
+  "registrations": [
+    {
+      "agentId": "B7hJ88Yv6XJAfqTkZbenRGbLcTiL3WUbStvnkZ4wP3m1",
+      "agentRegistry": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1:8oo4J9tBB3Hna1jRQ3rWvJjojqM5DYTDJo5cejUuJy3C"
+    }
+  ]
 }

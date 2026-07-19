@@ -310,6 +310,95 @@ async def run_agent_migrations() -> None:
     )
 
 
+async def run_supplemental_migrations() -> None:
+    """Live markets + on-chain wallet predictions (separate from Prisma virtual predictions)."""
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          wallet_pubkey TEXT NOT NULL UNIQUE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """
+    )
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS markets (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          external_id TEXT NOT NULL UNIQUE,
+          match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+          type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          closes_at TIMESTAMPTZ,
+          closed BOOLEAN NOT NULL DEFAULT false,
+          total_liquidity NUMERIC NOT NULL DEFAULT 0,
+          window_opens_at TIMESTAMPTZ,
+          resolution_kind TEXT,
+          resolved_outcome TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """
+    )
+    await execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_markets_live_window
+          ON markets (match_id, type, closes_at)
+          WHERE type LIKE 'live_%'
+        """
+    )
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS market_options (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          external_id TEXT NOT NULL,
+          market_id TEXT NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
+          label TEXT NOT NULL,
+          price NUMERIC NOT NULL DEFAULT 1,
+          liquidity NUMERIC NOT NULL DEFAULT 0,
+          participants INT NOT NULL DEFAULT 0,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          UNIQUE(market_id, external_id)
+        )
+        """
+    )
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS wallet_predictions (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          external_id TEXT NOT NULL UNIQUE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          market_id TEXT NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
+          match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+          option_id TEXT NOT NULL REFERENCES market_options(id),
+          outcome_label TEXT NOT NULL,
+          amount NUMERIC NOT NULL,
+          price NUMERIC NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          payout NUMERIC,
+          claimed BOOLEAN NOT NULL DEFAULT false,
+          escrow_pda TEXT,
+          tx_signature TEXT,
+          placed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """
+    )
+    await execute(
+        """
+        CREATE TABLE IF NOT EXISTS wallet_escrows (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          prediction_id TEXT NOT NULL UNIQUE REFERENCES wallet_predictions(id) ON DELETE CASCADE,
+          amount NUMERIC NOT NULL,
+          status TEXT NOT NULL DEFAULT 'locked',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """
+    )
+
+
 async def ensure_agents() -> list[dict]:
     await run_agent_migrations()
     agents = await fetch_all("SELECT * FROM agents WHERE is_system = true ORDER BY name")
@@ -619,14 +708,14 @@ async def ensure_user(wallet_pubkey: str) -> dict:
 
 
 async def prediction_tx_exists(tx_signature: str) -> bool:
-    row = await fetch_one("select id from predictions where tx_signature = $1 limit 1", tx_signature)
+    row = await fetch_one("select id from wallet_predictions where tx_signature = $1 limit 1", tx_signature)
     return row is not None
 
 
 async def insert_usdc_prediction(data: dict) -> dict:
     row = await fetch_one(
         """
-        insert into predictions (
+        insert into wallet_predictions (
           external_id, user_id, market_id, match_id, option_id, outcome_label,
           amount, price, status, escrow_pda, tx_signature, placed_at
         ) values (
@@ -648,7 +737,7 @@ async def insert_usdc_prediction(data: dict) -> dict:
     )
     if row:
         await execute(
-            "insert into escrows (prediction_id, amount, status) values ($1, $2, 'locked')",
+            "insert into wallet_escrows (prediction_id, amount, status) values ($1, $2, 'locked')",
             row["id"],
             data["amount"],
         )

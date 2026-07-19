@@ -6,12 +6,12 @@ export function DevnetBanner() {
   if (getSolanaNetwork() === "mainnet") return null;
 
   return (
-    <div className="border-b border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-emerald-500/10 px-4 py-2 text-center">
-      <p className="text-[11px] sm:text-xs font-mono tracking-wide text-amber-200/90">
-        <span className="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 mr-2 text-[10px] font-bold uppercase text-amber-300">
-          Devnet Demo
+    <div className="border-b border-amber-500/25 bg-gradient-to-r from-amber-500/[0.12] via-background to-gold/[0.06] px-4 py-2 text-center">
+      <p className="font-mono text-[11px] tracking-wide text-amber-100/85 sm:text-xs">
+        <span className="mr-2 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+          Devnet
         </span>
-        Solana Devnet · Test USDC only · No real-world monetary value
+        Test USDC only · No real-world value
       </p>
     </div>
   );
